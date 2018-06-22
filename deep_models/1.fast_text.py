@@ -31,7 +31,7 @@ os.environ["CUDA_VISIBLE_DEVICES"] = "2"
 ## 设置数据路径和模型参数
 ########################################
 # directories
-BASE_DIR = '../../input/'
+BASE_DIR = '../input/'
 WORD_EMBED_PATH = BASE_DIR + 'word_embed.txt'
 TRAIN_DATA_FILE = BASE_DIR + 'train.csv'
 TEST_DATA_FILE = BASE_DIR + 'test.csv'
@@ -51,9 +51,9 @@ EMBEDDING_TRAINABLE = False # 词向量是否可以训练
 ## key为词，value为对应的 300 维的向量
 ########################################
 data = data_loader.load_datas(word_embed_path=WORD_EMBED_PATH, question_file=QUESTION_FILE,
-                       train_data_file=TRAIN_DATA_FILE, test_data_file=TEST_DATA_FILE,
-                       max_nb_words=MAX_NB_WORDS, max_sequence_length=MAX_SEQUENCE_LENGTH,
-                       embedding_dim=EMBEDDING_DIM)
+                              train_data_file=TRAIN_DATA_FILE, test_data_file=TEST_DATA_FILE,
+                              max_nb_words=MAX_NB_WORDS, max_sequence_length=MAX_SEQUENCE_LENGTH,
+                              embedding_dim=EMBEDDING_DIM, use_data_aug=True, random_state=42)
 
 ########################################
 ## built model architecture
@@ -86,8 +86,13 @@ model.summary()
 ########################################
 ## training the model and predict
 ########################################
-mest_model_path='./check_points/fast_text/best_fast_text_model.h5'
-early_stopping=ModelCheckpointAndLearningRateDecay(model_path=mest_model_path, save_best_only=True, save_weights_only=True,
+best_model_dir='./check_points/fast_text/'
+if not os.path.exists(best_model_dir):
+    os.makedirs(best_model_dir)
+
+model_name = 'best_fasttext_model.h5'
+best_model_path = best_model_dir + model_name
+early_stopping=ModelCheckpointAndLearningRateDecay(model_path=best_model_path, save_best_only=True, save_weights_only=True,
                                                    monitor='val_loss', lr_decay=0.99, patience=5, verbose=1, mode='min')
 model.fit(x=[data['train_q1_words_seqs'], data['train_q2_words_seqs']],
           y=data['labels'],
@@ -97,7 +102,7 @@ model.fit(x=[data['train_q1_words_seqs'], data['train_q2_words_seqs']],
           verbose=1,
           callbacks=[early_stopping])
 
-model.load_weights(filepath=mest_model_path)
+model.load_weights(filepath=best_model_path)
 
 y_pre = model.predict([data['test_q1_words_seq'], data['test_q2_words_seq']], batch_size=256)
 # 测试集也进行增强，预测求平均

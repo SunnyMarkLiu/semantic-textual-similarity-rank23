@@ -20,8 +20,8 @@ import warnings
 warnings.filterwarnings('ignore')
 
 
-def load_datas(word_embed_path, question_file, train_data_file, test_data_file, max_nb_words, max_sequence_length,
-               embedding_dim):
+def load_datas(word_embed_path, question_file, train_data_file, test_data_file,
+               max_nb_words, max_sequence_length, embedding_dim, use_data_aug, random_state):
     print('Indexing word vectors.')
     word_embeddings_index = {}
     with open(word_embed_path) as f:
@@ -39,11 +39,12 @@ def load_datas(word_embed_path, question_file, train_data_file, test_data_file, 
 
     # 数据增强
     # 交换 q1 和 q2
-    aug_train = train.copy()
-    aug_train.columns = ['label', 'q2', 'q1']
-    train = pd.concat([train, aug_train.sample(frac=0.5, random_state=42)], axis=0)
+    if use_data_aug:
+        aug_train = train.copy()
+        aug_train.columns = ['label', 'q2', 'q1']
+        train = pd.concat([train, aug_train.sample(frac=0.5, random_state=random_state)], axis=0)
     # shuffle
-    train = train.sample(frac=1, random_state=42)
+    train = train.sample(frac=1, random_state=random_state)
 
     train['id'] = np.arange(train.shape[0])
     train = pd.merge(train, questions, left_on=['q1'], right_on=['qid'], how='left')
