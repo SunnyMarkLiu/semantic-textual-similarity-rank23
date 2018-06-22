@@ -92,3 +92,7 @@ ENV/
 
 # other
 .idea
+input/*.csv
+input/*.txt
+result/*.csv
+.DS_Store

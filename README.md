@@ -4,7 +4,7 @@
 All kinds of neural models for  Natural Language Semantic Similarity.
 
 # Datasets
-[Quora Question Pairs](https://www.kaggle.com/c/quora-question-pairs/data): predict whether the provided pairs of questions are the same meaning. 
+[Quora Question Pairs](https://www.kaggle.com/c/quora-question-pairs/data): predict whether a pair of questions are duplicates or not, and submitting a binary prediction against the logloss metric. 
 
 # Models
 
