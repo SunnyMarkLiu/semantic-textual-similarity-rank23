@@ -19,7 +19,7 @@ from keras.callbacks import Callback
 from keras import backend as K
 
 
-class ModelCheckpointAndLearningRateDecay(Callback):
+class ModelCheckpoint_EarlyStop_LearningRateDecay(Callback):
     """Save the model after every epoch.
 
     `model_path` can contain named formatting options,
@@ -55,8 +55,9 @@ class ModelCheckpointAndLearningRateDecay(Callback):
 
     def __init__(self, model_path, lr_decay=0.9, monitor='val_loss', verbose=0,
                  save_best_only=True, save_weights_only=False,
+                 patience_continus_no_improvet_epoch=5,
                  mode='auto', period=1, patience=3):
-        super(ModelCheckpointAndLearningRateDecay, self).__init__()
+        super(ModelCheckpoint_EarlyStop_LearningRateDecay, self).__init__()
         self.monitor = monitor
         self.verbose = verbose
         self.model_path = model_path
@@ -69,8 +70,10 @@ class ModelCheckpointAndLearningRateDecay(Callback):
         self.patience_index = 0
 
         # continues updating lr twice no improvement，stop training
-        self.patience_continus_no_improvet_epoch = 2 * self.patience
+        self.patience_continus_no_improvet_epoch = patience_continus_no_improvet_epoch
         self.continus_no_improvet_epoch = 0
+
+        self.best_epoch = 0
 
         if mode not in ['auto', 'min', 'max']:
             warnings.warn('ModelCheckpoint mode %s is unknown, '
@@ -111,6 +114,7 @@ class ModelCheckpointAndLearningRateDecay(Callback):
                                   % (epoch, self.monitor, self.best,
                                      current, model_path))
                         self.best = current
+                        self.best_epoch = epoch
                         # clear patience_index
                         self.patience_index = 0
                         if self.save_weights_only:
@@ -140,7 +144,8 @@ class ModelCheckpointAndLearningRateDecay(Callback):
                             self.continus_no_improvet_epoch += 1
 
                     if self.continus_no_improvet_epoch > self.patience_continus_no_improvet_epoch:
-                        print('\nStop training... \nbest %s : %0.5f, model path: %s' % (self.monitor, self.best, self.model_path))
+                        print('\nStop training... \nbest %s : %0.5f, epoch: %d, model path: %s' %
+                              (self.monitor, self.best, self.best_epoch, self.model_path))
                         self.model.stop_training = True
 
             else:

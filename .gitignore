@@ -96,3 +96,4 @@ input/*.csv
 input/*.txt
 result/*.csv
 .DS_Store
+papers_I_should_read.md
