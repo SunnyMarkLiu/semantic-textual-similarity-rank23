@@ -55,7 +55,7 @@ class ModelCheckpoint_EarlyStop_LearningRateDecay(Callback):
 
     def __init__(self, model_path, lr_decay=0.9, monitor='val_loss', verbose=0,
                  save_best_only=True, save_weights_only=False,
-                 patience_continus_no_improvet_epoch=5,
+                 patience_continus_no_improvet_epoch=3,
                  mode='auto', period=1, patience=3):
         super(ModelCheckpoint_EarlyStop_LearningRateDecay, self).__init__()
         self.monitor = monitor

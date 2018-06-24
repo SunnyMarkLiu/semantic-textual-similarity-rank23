@@ -21,7 +21,7 @@ warnings.filterwarnings('ignore')
 
 
 def load_datas(word_embed_path, question_file, train_data_file, test_data_file,
-               max_nb_words, max_sequence_length, embedding_dim, use_data_aug, random_state):
+               max_nb_words, max_sequence_length, embedding_dim, use_data_aug, n_gram=None, random_state=42):
     print('Indexing word vectors.')
     word_embeddings_index = {}
     with open(word_embed_path) as f:
@@ -30,21 +30,11 @@ def load_datas(word_embed_path, question_file, train_data_file, test_data_file,
             word = str(values[0])
             coefs = np.asarray(values[1:], dtype='float32')
             word_embeddings_index[word] = coefs
-    print('Found %d word vectors.' % len(word_embeddings_index))
 
     print('load and process text dataset')
     questions = pd.read_csv(question_file)
     train = pd.read_csv(train_data_file)
     test = pd.read_csv(test_data_file)
-
-    # 数据增强
-    # 交换 q1 和 q2
-    if use_data_aug:
-        aug_train = train.copy()
-        aug_train.columns = ['label', 'q2', 'q1']
-        train = pd.concat([train, aug_train.sample(frac=0.5, random_state=random_state)], axis=0)
-    # shuffle
-    train = train.sample(frac=1, random_state=random_state)
 
     train['id'] = np.arange(train.shape[0])
     train = pd.merge(train, questions, left_on=['q1'], right_on=['qid'], how='left')
@@ -61,6 +51,49 @@ def load_datas(word_embed_path, question_file, train_data_file, test_data_file,
     test = pd.merge(test, questions, left_on=['q2'], right_on=['qid'], how='left')
     test = test.rename(columns={'words': 'q2_words', 'chars': 'q2_chars'})
     test.drop(['q1', 'q2', 'qid'], axis=1, inplace=True)
+
+    # add n-gram features
+    if n_gram is not None and n_gram > 1:
+        print('add ngram words, ngram =', n_gram)
+
+        def add_ngram_words(input_str, ngram_value=2):
+            """
+            Extract a set of n-grams from a list of integers.
+            """
+            input_list = input_str.split(' ')
+            ngram_list = ['{}_{}'.format(input_list[i], input_list[i + ngram_value - 1]) \
+                          for i in range(len(input_list) - ngram_value + 1)]
+            for ngram_words in ngram_list:
+                words = ngram_words.split('_')
+                if n_gram == 2:
+                    n_gram_embed = (word_embeddings_index[words[0]] + word_embeddings_index[words[1]]) / 2.0
+                elif n_gram == 3:
+                    n_gram_embed = (word_embeddings_index[words[0]] + word_embeddings_index[words[1]] + word_embeddings_index[words[2]]) / 3.0
+                else:
+                    n_gram_embed = np.random.random(size=(embedding_dim,))
+
+                # 添加ngram词汇
+                word_embeddings_index[ngram_words] = n_gram_embed
+
+            input_list = input_list + ngram_list
+            result = ' '.join(input_list)
+            return result
+
+        train['q1_words'] = train['q1_words'].map(lambda words: add_ngram_words(words))
+        train['q2_words'] = train['q2_words'].map(lambda words: add_ngram_words(words))
+        test['q1_words'] = test['q1_words'].map(lambda words: add_ngram_words(words))
+        test['q2_words'] = test['q2_words'].map(lambda words: add_ngram_words(words))
+
+    print('Found %d word vectors.' % len(word_embeddings_index))
+
+    # 数据增强:交换 q1 和 q2
+    if use_data_aug:
+        print('exchange q1 and q2 to augment training dataset')
+        aug_train = train.copy()
+        aug_train.columns = ['label', 'id', 'q2_words', 'q2_chars', 'q1_words', 'q1_chars']
+        train = pd.concat([train, aug_train.sample(frac=0.5, random_state=random_state)], axis=0)
+    # shuffle
+    train = train.sample(frac=1, random_state=random_state)
 
     # 拼接 train 和 test，方便处理
     test['label'] = -1
@@ -111,7 +144,7 @@ def load_datas(word_embed_path, question_file, train_data_file, test_data_file,
             embedding_matrix[i] = embedding_vector
     print('Null word embeddings: %d' % np.sum(np.sum(embedding_matrix, axis=1) == 0))
 
-    data = {'nb_words': nb_words, 'embedding_matrix': embedding_matrix, 'labels':labels,
+    data = {'nb_words': nb_words, 'embedding_matrix': embedding_matrix, 'labels': labels,
             'train_q1_words_seqs': train_q1_words_seqs, 'train_q2_words_seqs': train_q2_words_seqs,
             'test_q1_words_seq': test_q1_words_seq, 'test_q2_words_seq': test_q2_words_seq}
     return data

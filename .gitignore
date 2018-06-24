@@ -95,5 +95,6 @@ ENV/
 input/*.csv
 input/*.txt
 result/*.csv
+result/ensemble/*.csv
 .DS_Store
 papers_I_should_read.md
