@@ -38,34 +38,32 @@ class Configure(object):
     aug_frac            = 0.5   # 数据扩充比例
     random_state        = 42    # 随机数状态
     n_gram              = None  # 添加 n_gram words
-    roof_fold           = 10     # 交叉验证的 fold 数
     batch_size          = 64    # 训练的 batch_size
     epochs              = 100   # 训练的最大 epoch，注意设置了 early stopping
 
     # models
     dssm_cfg = {
         'dense_dropout' : 0.3,
-        'dense_units': [1024, 512, 256],
-        'activation': 'relu'
+        'dense_units'   : [1024, 512, 256],
+        'activation'    : 'relu'
     }
 
     lstm_dssm_cfg = {
         'lstm_units'    : 200,
         'rnn_dropout'   : 0.2,
         'dense_dropout' : 0.3,
-        'dense_units'   : [512],
+        'dense_units'   : [512, 256],
         'activation'    : 'relu'
     }
 
     def params_to_string(self):
-        param_str = 'max_seq_len{}-max_nb_words{}_embed_train{}_aug{}_augfrac{}_seed{}_fold{}_lr_decay{}_batch_size{}'.format(
+        param_str = 'max_seq_len{}-max_nb_words{}_embed_train{}_aug{}_augfrac{}_seed{}_lr_decay{}_batch_size{}'.format(
             self.max_sequence_length,
             self.max_nb_words,
             self.embed_trainable,
             self.use_data_aug,
             self.aug_frac,
             self.random_state,
-            self.roof_fold,
             self.lr_decay,
             self.batch_size
         )

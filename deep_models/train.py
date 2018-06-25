@@ -24,13 +24,14 @@ os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
 # os.environ["CUDA_VISIBLE_DEVICES"]="0,1"
 
 flags.DEFINE_string('model', 'multi_dssm.DSSM', "path of the Class for the classifier")
+flags.DEFINE_integer('fold', 5, "run out of fold")
 flags.DEFINE_float('lr_drop_epoch', 5.0, "every x epoch then drop learning rate")
 FLAGS = flags.FLAGS
 
 def main():
     cfg = Configure()
     print('============= params=============')
-    print('param:', cfg.params_to_string())
+    print('param:', cfg.params_to_string() + '_fold{}'.format(FLAGS.fold))
     print('model:', FLAGS.model)
 
     print('\n===> load dataset and prepare for model inputs')
@@ -52,7 +53,7 @@ def main():
 
     model = cls(data=data, cfg=cfg, lr_drop_epoch=FLAGS.lr_drop_epoch, model_name=cls_name)
     print('===> train and predict')
-    model.train_and_predict(roof=True)
+    model.train_and_predict(roof=True, fold=FLAGS.fold)
     print('done')
 
 if __name__ == '__main__':

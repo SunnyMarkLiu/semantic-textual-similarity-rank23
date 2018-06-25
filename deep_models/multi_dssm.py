@@ -62,7 +62,7 @@ class DSSM(BaseModel):
 
         return model
 
-class CDSSM(BaseModel):
+class CNN_DSSM(BaseModel):
 
     def build_model(self, data):
         pass
@@ -82,6 +82,7 @@ class LSTM_DSSM(BaseModel):
         embedded_sequences_2 = embedding_layer(sequence_2_input)
 
         # LSTM encode question input
+        # a shared LSTM layer can give better generalization
         lstm_layer = LSTM(
             units=self.cfg.lstm_dssm_cfg['lstm_units'],
             dropout=self.cfg.lstm_dssm_cfg['rnn_dropout'],

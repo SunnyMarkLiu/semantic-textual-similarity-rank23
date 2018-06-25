@@ -49,7 +49,7 @@ class BaseModel(object):
         lrate = initial_lrate * math.pow(lr_decay, math.floor((1 + epoch) / epochs_drop))
         return lrate
 
-    def _run_out_of_fold(self):
+    def _run_out_of_fold(self, fold):
         """ roof 方式训练模型 """
         best_model_dir = self.cfg.model_save_base_dir + self.model_name
         if not os.path.exists(best_model_dir):
@@ -58,7 +58,7 @@ class BaseModel(object):
         pred_train_full = np.zeros(len(self.data['train_q1_words_seqs']))
         pred_test_full = 0
         cv_logloss = []
-        roof_flod = self.cfg.roof_fold
+        roof_flod = fold
 
         kf = StratifiedKFold(n_splits=roof_flod, shuffle=True, random_state=42)
         for kfold, (train_index, valid_index) in enumerate(
@@ -128,7 +128,7 @@ class BaseModel(object):
         print("saving predictions for ensemble")
         test_df = pd.DataFrame({'y_pre': pred_train_full})
         test_df.to_csv('{}train_{}_{}_cv{}_{}.csv'.format(
-                self.cfg.save_ensemble_dir, self.model_name, self.cfg.params_to_string(), mean_cv_logloss, self.time_str
+                self.cfg.save_ensemble_dir, self.model_name, self.cfg.params_to_string() + '_fold{}'.format(fold), mean_cv_logloss, self.time_str
             ),
             index=False
         )
@@ -136,7 +136,7 @@ class BaseModel(object):
         test_predict = pred_test_full / float(roof_flod)
         test_df = pd.DataFrame({'y_pre': test_predict})
         test_df.to_csv('{}test_{}_{}_cv{}_{}.csv'.format(
-                self.cfg.save_ensemble_dir, self.model_name, self.cfg.params_to_string(), mean_cv_logloss, self.time_str
+                self.cfg.save_ensemble_dir, self.model_name, self.cfg.params_to_string() + '_fold{}'.format(fold), mean_cv_logloss, self.time_str
             ),
             index=False
         )
@@ -144,8 +144,8 @@ class BaseModel(object):
     def _simple_train_predict(self):
         pass
 
-    def train_and_predict(self, roof):
+    def train_and_predict(self, roof, fold):
         if roof:
-            self._run_out_of_fold()
+            self._run_out_of_fold(fold)
         else:
             self._simple_train_predict()
