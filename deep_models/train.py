@@ -9,12 +9,13 @@ import os
 import sys
 
 sys.path.append("../")
-# 文本处理
-import warnings
 
+import warnings
 warnings.filterwarnings('ignore')
+
+import importlib
 from utils import data_loader
-from multi_dssm import DSSM
+from tensorflow import flags
 from conf.configure import Configure
 
 # disable TF debug logs
@@ -22,12 +23,14 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
 # os.environ["CUDA_VISIBLE_DEVICES"]="0,1"
 
-cfg = Configure()
-
+flags.DEFINE_string('model', 'multi_dssm.DSSM', "path of the Class for the classifier")
+FLAGS = flags.FLAGS
 
 def main():
+    cfg = Configure()
     print('============= params=============')
-    print(cfg.params_to_string())
+    print('param:', cfg.params_to_string())
+    print('model:', FLAGS.model)
 
     print('\n===> load dataset and prepare for model inputs')
     data = data_loader.load_datas(
@@ -40,7 +43,13 @@ def main():
 
     # create model
     print('===> create model')
-    model = DSSM(data, cfg, model_name='DSSM')
+    cls_name = FLAGS.model
+    module_name = ".".join(cls_name.split('.')[:-1])
+    cls_name = cls_name.split('.')[-1]
+    _module = importlib.import_module(module_name)
+    cls = _module.__dict__.get(cls_name)
+
+    model = cls(data, cfg, model_name=cls_name)
     print('===> train and predict')
     model.train_and_predict(roof=True)
     print('done')

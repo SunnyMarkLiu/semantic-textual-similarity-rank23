@@ -69,3 +69,18 @@ class DSSM(BaseModel):
 
         return model
 
+class CDSSM(BaseModel):
+
+    def build_model(self, data):
+        pass
+
+
+class LSTM_DSSM(BaseModel):
+
+    def build_model(self, data):
+        pass
+
+class Merge_DSSM(BaseModel):
+
+    def build_model(self, data):
+        pass
