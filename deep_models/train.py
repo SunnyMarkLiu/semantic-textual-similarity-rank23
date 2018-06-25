@@ -24,6 +24,7 @@ os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
 # os.environ["CUDA_VISIBLE_DEVICES"]="0,1"
 
 flags.DEFINE_string('model', 'multi_dssm.DSSM', "path of the Class for the classifier")
+flags.DEFINE_float('lr_drop_epoch', 5.0, "every x epoch then drop learning rate")
 FLAGS = flags.FLAGS
 
 def main():
@@ -49,7 +50,7 @@ def main():
     _module = importlib.import_module(module_name)
     cls = _module.__dict__.get(cls_name)
 
-    model = cls(data, cfg, model_name=cls_name)
+    model = cls(data=data, cfg=cfg, lr_drop_epoch=FLAGS.lr_drop_epoch, model_name=cls_name)
     print('===> train and predict')
     model.train_and_predict(roof=True)
     print('done')
