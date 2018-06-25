@@ -30,6 +30,7 @@ def load_datas(word_embed_path, question_file, train_data_file, test_data_file,
             word = str(values[0])
             coefs = np.asarray(values[1:], dtype='float32')
             word_embeddings_index[word] = coefs
+    print('Found %d word vectors.' % len(word_embeddings_index))
 
     print('load and process text dataset')
     questions = pd.read_csv(question_file)
@@ -61,8 +62,15 @@ def load_datas(word_embed_path, question_file, train_data_file, test_data_file,
             Extract a set of n-grams from a list of integers.
             """
             input_list = input_str.split(' ')
-            ngram_list = ['{}_{}'.format(input_list[i], input_list[i + ngram_value - 1]) \
-                          for i in range(len(input_list) - ngram_value + 1)]
+            if ngram_value == 2:
+                ngram_list = ['{}_{}'.format(input_list[i], input_list[i + ngram_value - 1]) \
+                              for i in range(len(input_list) - ngram_value + 1)]
+            elif ngram_value == 3:
+                ngram_list = ['{}_{}_{}'.format(input_list[i], input_list[i + ngram_value - 2], input_list[i + ngram_value - 1]) \
+                    for i in range(len(input_list) - ngram_value + 1)]
+            else:
+                ngram_list = []
+
             for ngram_words in ngram_list:
                 words = ngram_words.split('_')
                 if n_gram == 2:
@@ -79,12 +87,12 @@ def load_datas(word_embed_path, question_file, train_data_file, test_data_file,
             result = ' '.join(input_list)
             return result
 
-        train['q1_words'] = train['q1_words'].map(lambda words: add_ngram_words(words))
-        train['q2_words'] = train['q2_words'].map(lambda words: add_ngram_words(words))
-        test['q1_words'] = test['q1_words'].map(lambda words: add_ngram_words(words))
-        test['q2_words'] = test['q2_words'].map(lambda words: add_ngram_words(words))
+        train['q1_words'] = train['q1_words'].map(lambda words: add_ngram_words(words, ngram_value=n_gram))
+        train['q2_words'] = train['q2_words'].map(lambda words: add_ngram_words(words, ngram_value=n_gram))
+        test['q1_words'] = test['q1_words'].map(lambda words: add_ngram_words(words, ngram_value=n_gram))
+        test['q2_words'] = test['q2_words'].map(lambda words: add_ngram_words(words, ngram_value=n_gram))
 
-    print('Found %d word vectors.' % len(word_embeddings_index))
+        print('Found %d word vectors after ngram.' % len(word_embeddings_index))
 
     # 数据增强:交换 q1 和 q2
     if use_data_aug:

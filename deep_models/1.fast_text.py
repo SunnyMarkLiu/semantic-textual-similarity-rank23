@@ -20,16 +20,17 @@ from keras.layers import Input, TimeDistributed, Dense, Lambda, concatenate, Dro
 from keras.layers.embeddings import Embedding
 from keras import backend as K
 import warnings
+
 warnings.filterwarnings('ignore')
 from sklearn.model_selection import StratifiedKFold
 from sklearn.metrics import log_loss
 from utils import data_loader
-from utils.keras_utils import ModelCheckpoint_EarlyStop_LearningRateDecay
+from utils.keras_utils import ModelSave_EarlyStop_LRDecay
 
 # disable TF debug logs
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
-os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"
-os.environ["CUDA_VISIBLE_DEVICES"]="0,1"
+os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+# os.environ["CUDA_VISIBLE_DEVICES"]="0,1"
 
 ########################################
 ## 设置数据路径和模型参数
@@ -45,18 +46,18 @@ model_name = 'fast_text'
 time_str = time.strftime('%m_%d_%H_%M', time.localtime(time.time()))
 
 # parameters
-MAX_SEQUENCE_LENGTH = 20     # 序列的最大长度
-MAX_NB_WORDS = 192655         # 词汇表的最大词汇数
-EMBEDDING_DIM = 300         # 词向量的维度
-VALIDATION_SPLIT = 0.02     # 线下验证集的划分比例
-DROPOUT = 0.3              # dropout 比例
-EMBEDDING_TRAINABLE = False # 词向量是否可以训练
-LEARNINGREATE_DECAY = 1     # 学习率衰减
+MAX_SEQUENCE_LENGTH = 20  # 序列的最大长度
+MAX_NB_WORDS = 20890  # 词汇表的最大词汇数
+EMBEDDING_DIM = 300  # 词向量的维度
+DROPOUT = 0.3  # dropout 比例
+EMBEDDING_TRAINABLE = True  # 词向量是否可以训练
+LEARNINGREATE_DECAY = 1  # 学习率衰减
+BATCH_SIZE = 64  # train batch_size
+FOLD = 10         # run out of fold
 
-params = 'max_seq_len:{}-max_nb_words:{}-dropout:{}-embed_train:{}-lr_decay:{}'.format(
-    MAX_SEQUENCE_LENGTH, MAX_NB_WORDS, DROPOUT, EMBEDDING_TRAINABLE, LEARNINGREATE_DECAY)
-
-print('='*8, '\n', params, '\n')
+params = 'max_seq_len:{}-max_nb_words:{}-dropout:{}-embed_train:{}-lr_decay:{}-batch_size:{}-fold:{}'.format(
+    MAX_SEQUENCE_LENGTH, MAX_NB_WORDS, DROPOUT, EMBEDDING_TRAINABLE, LEARNINGREATE_DECAY, BATCH_SIZE, FOLD)
+print(params)
 
 
 def build_model(data):
@@ -109,7 +110,6 @@ def build_model(data):
 
 
 def main():
-
     ########################################
     ## index word vectors
     ## 读取词向量文本转化为字典
@@ -118,7 +118,7 @@ def main():
     data = data_loader.load_datas(word_embed_path=WORD_EMBED_PATH, question_file=QUESTION_FILE,
                                   train_data_file=TRAIN_DATA_FILE, test_data_file=TEST_DATA_FILE,
                                   max_nb_words=MAX_NB_WORDS, max_sequence_length=MAX_SEQUENCE_LENGTH,
-                                  embedding_dim=EMBEDDING_DIM, use_data_aug=True, random_state=42, n_gram=2)
+                                  embedding_dim=EMBEDDING_DIM, use_data_aug=True, random_state=42, n_gram=None)
 
     best_model_dir = './check_points/fast_text/'
     if not os.path.exists(best_model_dir):
@@ -127,12 +127,11 @@ def main():
     pred_train_full = np.zeros(len(data['train_q1_words_seqs']))
     pred_test_full = 0
     cv_logloss = []
-    roof_flod = 5
+    roof_flod = FOLD
 
     kf = StratifiedKFold(n_splits=roof_flod, shuffle=True, random_state=42)
     for i, (train_index, valid_index) in enumerate(kf.split(data['train_q1_words_seqs'], data['labels'])):
-        print('========== perform fold {}, train size: {}, validate size: {} =========='.format(i, len(train_index),
-                                                                                                len(valid_index)))
+        print('\n============== perform fold {} =============='.format(i))
 
         train_input1 = data['train_q1_words_seqs'][train_index]
         train_input2 = data['train_q2_words_seqs'][train_index]
@@ -151,8 +150,11 @@ def main():
 
         best_model_name = 'best_fasttext_fold{}_params:{}.h5'.format(i, params)
         best_model_path = best_model_dir + best_model_name
-        early_stop=ModelCheckpoint_EarlyStop_LearningRateDecay(model_path=best_model_path, save_best_only=True, save_weights_only=True,
-                                                       monitor='val_loss', lr_decay=LEARNINGREATE_DECAY, patience=5, verbose=1, mode='min')
+        early_stop = ModelSave_EarlyStop_LRDecay(model_path=best_model_path,
+                                                 save_best_only=True, save_weights_only=True,
+                                                 monitor='val_loss', lr_decay=LEARNINGREATE_DECAY,
+                                                 patience=5, verbose=0, mode='min')
+        # embed_trainable = DynamicLayerTrainable(monitor='val_loss', set_layer_index=2, verbose=1)
 
         # if os.path.exists(best_model_path):
         #     model.load_weights(best_model_path)
@@ -160,20 +162,20 @@ def main():
         model.fit(x=[train_input1, train_input2],
                   y=train_y,
                   epochs=100,
-                  batch_size=128,
+                  batch_size=BATCH_SIZE,
                   validation_data=([valid_input1, valid_input2], valid_y),
                   verbose=1,
                   callbacks=[early_stop])
 
         model.load_weights(filepath=best_model_path)
 
-        print('predict')
         # predict valid
         valid_pred_1 = model.predict([valid_input1, valid_input2], batch_size=256)[:, 0]
         valid_pred_2 = model.predict([valid_input2, valid_input1], batch_size=256)[:, 0]
         valid_pred = (valid_pred_1 + valid_pred_2) / 2.0
 
         valid_logloss = log_loss(valid_y, valid_pred)
+        print('valid_logloss:', valid_logloss)
         cv_logloss.append(valid_logloss)
 
         test_pred_1 = model.predict([data['test_q1_words_seq'], data['test_q2_words_seq']], batch_size=256)[:, 0]
@@ -184,6 +186,8 @@ def main():
         pred_train_full[valid_index] = valid_pred
         pred_test_full += test_pred
 
+    print('cv result:')
+    print(cv_logloss)
     mean_cv_logloss = np.mean(cv_logloss)
     print('Mean cv logloss:', mean_cv_logloss)
 
@@ -196,6 +200,7 @@ def main():
     test_df = pd.DataFrame({'y_pre': test_predict})
     test_df.to_csv('../result/ensemble/test_{}_{}_cv:{}_{}.csv'.format(model_name, params, mean_cv_logloss, time_str),
                    index=False)
+
 
 if __name__ == '__main__':
     main()

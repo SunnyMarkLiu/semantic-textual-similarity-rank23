@@ -19,7 +19,82 @@ from keras.callbacks import Callback
 from keras import backend as K
 
 
-class ModelCheckpoint_EarlyStop_LearningRateDecay(Callback):
+class DynamicLayerTrainable(Callback):
+    """ set model layer trainable or not trainable dynamically """
+    def __init__(
+            self,
+            monitor='val_loss',
+            set_layer_index=None,
+            show_all_layers=False,
+            verbose=0,
+            mode='auto'
+    ):
+        super(DynamicLayerTrainable, self).__init__()
+        self.monitor = monitor
+        self.set_layer_index = set_layer_index
+        self.show_all_layers = show_all_layers
+        self.set_layer_trainable = False
+        self.verbose = verbose
+
+        if mode not in ['auto', 'min', 'max']:
+            warnings.warn('mode %s is unknown, '
+                          'fallback to auto mode.' % (mode),
+                          RuntimeWarning)
+            mode = 'auto'
+
+        if mode == 'min':
+            self.monitor_op = np.less
+            self.best = np.Inf
+        elif mode == 'max':
+            self.monitor_op = np.greater
+            self.best = -np.Inf
+        else:
+            if 'acc' in self.monitor or self.monitor.startswith('fmeasure'):
+                self.monitor_op = np.greater
+                self.best = -np.Inf
+            else:
+                self.monitor_op = np.less
+                self.best = np.Inf
+
+    def on_epoch_begin(self, epoch, logs=None):
+        if self.show_all_layers:
+            print('='*20)
+            print(self.model.layers)
+
+
+    def on_epoch_end(self, epoch, logs=None):
+        logs = logs or {}
+        current = logs.get(self.monitor)
+        if current is None:
+            warnings.warn('Can save best model only with %s available, '
+                          'skipping.' % (self.monitor), RuntimeWarning)
+        else:
+            if self.monitor_op(current, self.best):
+
+                self.best = current
+                self.best_epoch = epoch
+                # clear patience_index
+                self.patience_index = 0
+
+                # clear flag
+                self.continus_no_improvet_epoch = 0
+
+            else:
+                # update layer trainable true
+                if epoch > 0:
+                    # didn't improve
+                    # 第一次设置 variable 的 trainable 为 True
+                    if not self.set_layer_trainable:
+                        self.set_layer_trainable = True
+                        set_layer = self.model.layers[self.set_layer_index]
+
+                        if self.verbose:
+                            print('\nset embedding layer trainable from {} to {}'.format(set_layer.trainable,
+                                                                                       not set_layer.trainable))
+                        set_layer.trainable = not set_layer.trainable
+
+
+class ModelSave_EarlyStop_LRDecay(Callback):
     """Save the model after every epoch.
 
     `model_path` can contain named formatting options,
@@ -57,7 +132,7 @@ class ModelCheckpoint_EarlyStop_LearningRateDecay(Callback):
                  save_best_only=True, save_weights_only=False,
                  patience_continus_no_improvet_epoch=3,
                  mode='auto', period=1, patience=3):
-        super(ModelCheckpoint_EarlyStop_LearningRateDecay, self).__init__()
+        super(ModelSave_EarlyStop_LRDecay, self).__init__()
         self.monitor = monitor
         self.verbose = verbose
         self.model_path = model_path
@@ -76,9 +151,7 @@ class ModelCheckpoint_EarlyStop_LearningRateDecay(Callback):
         self.best_epoch = 0
 
         if mode not in ['auto', 'min', 'max']:
-            warnings.warn('ModelCheckpoint mode %s is unknown, '
-                          'fallback to auto mode.' % (mode),
-                          RuntimeWarning)
+            warnings.warn('ModelCheckpoint mode %s is unknown, fallback to auto mode.' % (mode), RuntimeWarning)
             mode = 'auto'
 
         if mode == 'min':
@@ -109,10 +182,8 @@ class ModelCheckpoint_EarlyStop_LearningRateDecay(Callback):
                 else:
                     if self.monitor_op(current, self.best):
                         if self.verbose > 0:
-                            print('\nEpoch %05d: %s improved from %0.5f to %0.5f,'
-                                  ' saving model to %s'
-                                  % (epoch, self.monitor, self.best,
-                                     current, model_path))
+                            print('\nEpoch %05d: %s improved from %0.5f to %0.5f,' %
+                                  (epoch, self.monitor, self.best, current))
                         self.best = current
                         self.best_epoch = epoch
                         # clear patience_index
