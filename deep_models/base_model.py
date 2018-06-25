@@ -6,137 +6,135 @@
 @time  : 2018/6/12 上午12:02
 """
 import os
+import sys
+import time
+
 import numpy as np
 import pandas as pd
-from abc import ABCMeta, abstractmethod
-from keras.models import Model
-from keras.callbacks import EarlyStopping, ModelCheckpoint
-from keras.layers import Layer, Activation
-from keras import initializers, regularizers, constraints
-from keras import backend as K
-from sklearn.metrics import auc, roc_curve
-from sklearn.model_selection import StratifiedKFold, train_test_split
 
+sys.path.append("../")
+from abc import ABCMeta
 
-def evaluate_score(predict, y_true):
-    false_positive_rate, true_positive_rate, thresholds = roc_curve(y_true, predict, pos_label=1)
-    auc_score = auc(false_positive_rate, true_positive_rate)
-    return auc_score
+# 文本处理
+import warnings
 
+warnings.filterwarnings('ignore')
+from sklearn.model_selection import StratifiedKFold
+from utils.keras_utils import ModelSave_EarlyStop_LRDecay
 
 class BaseModel(object):
     """ Abstract base model for all text matching model """
     __metaclass__ = ABCMeta
 
-    def __init__(self, data, bst_model_path, max_num_voc_words, epochs=50, max_sen_len=10, embed_size=300,
-                 batch_size=64,
-                 last_act_fn='relu', optimizer='adam', use_pretrained=True,
-                 embed_trainable=True, **kwargs):
-        """
-        :param data: EasyDict 对象
-        :param epochs: 迭代次数
-        :param max_sen_len:  规整化每个句子的最大长度
-        :param embed_size: 词向量维度
-        :param last_act_fn: 最后一层的激活函数
-        :param batch_size:
-        :param optimizer: 优化器
-        :param use_pretrained: 是否嵌入层使用预训练的模型
-        :param trainable: 是否嵌入层可训练, 该参数只有在use_pretrained为真时有用
-        :param kwargs: 不同模型的其他参数
-        """
+    def __init__(self, data, cfg, model_name):
         self.data = data
-        self.bst_model_path = bst_model_path
-        self.max_num_voc_words = max_num_voc_words
-        self.epochs = epochs
-        self.max_sen_len = max_sen_len
-        self.embed_size = embed_size
-        self.batch_size = batch_size
-        self.last_act_fn = last_act_fn
-        self.optimizer = optimizer
-        self.use_pretrained = use_pretrained
-        self.embed_trainable = embed_trainable
-        self.kwargs = kwargs
+        self.cfg = cfg
+        self.model_name = model_name
+        self.time_str = time.strftime('%m_%d_%H_%M', time.localtime(time.time()))
 
-        self.is_kfold = kwargs.get('is_kfold', False)
-        self.kfold = kwargs.get('kfold', 0)
-        if self.is_kfold:
-            self.bst_model_path_list = []
-
-    @abstractmethod
-    def get_model(self, embed_trainable=None) -> Model:
+    @NotImplementedError
+    def build_model(self, data):
         """ 构建模型 """
         raise NotImplementedError
 
-    @abstractmethod
-    def _get_bst_model_path(self) -> str:
-        """return a name which is used for save trained weights"""
-        raise NotImplementedError
+    def _run_out_of_fold(self):
+        """ roof 方式训练模型 """
+        best_model_dir = self.cfg.model_save_base_dir + self.model_name
+        if not os.path.exists(best_model_dir):
+            os.makedirs(best_model_dir)
 
-    def train(self, random_state=42, valid_size=0.1):
-        print(self.kwargs)
-        model_checkpoint = ModelCheckpoint(self.bst_model_path, save_best_only=True, save_weights_only=True)
-        early_stopping = EarlyStopping(monitor='val_loss', patience=5)
+        pred_train_full = np.zeros(len(self.data['train_q1_words_seqs']))
+        pred_test_full = 0
+        cv_logloss = []
+        roof_flod = self.cfg.roof_fold
 
-        if self.is_kfold:
-            pred_train_full = np.zeros(self.data.train_q1.shape[0])
-            pred_test_full = 0
-            cv_scores = []
+        kf = StratifiedKFold(n_splits=roof_flod, shuffle=True, random_state=42)
+        for kfold, (train_index, valid_index) in enumerate(
+                kf.split(self.data['train_q1_words_seqs'], self.data['labels'])):
+            print('\n============== perform fold {} =============='.format(kfold))
 
-            kf = StratifiedKFold(n_splits=self.kfold, shuffle=True, random_state=random_state)
-            for i, (train_index, valid_index) in enumerate(kf.split(self.data.train_q1, self.data.y_train)):
-                print('perform fold {}, train: {}, valid: {}'.format(i, len(train_index), len(valid_index)))
-                train_q1, valid_q1= self.data.train_q1[train_index], self.data.train_q1[valid_index]
-                train_q2, valid_q2= self.data.train_q2[train_index], self.data.train_q2[valid_index]
+            train_input1 = self.data['train_q1_words_seqs'][train_index]
+            train_input2 = self.data['train_q2_words_seqs'][train_index]
+            train_y = self.data['labels'][train_index]
 
-                y_train, y_valid = self.data.y_train[train_index], self.data.y_train[valid_index]
+            valid_input1 = self.data['train_q1_words_seqs'][valid_index]
+            valid_input2 = self.data['train_q2_words_seqs'][valid_index]
+            valid_y = self.data['labels'][valid_index]
 
-                model = self.get_model(self.embed_trainable)
-                model.summary()
-                bmp = self.bst_model_path + '_' + str(i)
-                self.bst_model_path_list.append(bmp)
-                model_checkpoint = ModelCheckpoint(bmp, save_best_only=True, save_weights_only=True)
-                model.fit(x=[train_q1, train_q2],
-                          y=y_train,
-                          batch_size=self.batch_size,
-                          epochs=self.epochs,
-                          validation_data=[[valid_q1, valid_q2], y_valid],
-                          verbose=1,
-                          callbacks=[model_checkpoint, early_stopping])
-                print("training done, save to ", bmp)
-                valid_prd = model.predict([valid_q1, valid_q2])
+            model = self.build_model(self.data)
+            # model.summary()
 
-                valid_auc = evaluate_score(valid_prd, y_valid)
-                cv_scores.append(valid_auc)
+            ########################################
+            ## training the model and predict
+            ########################################
 
-                test_prd = model.predict([self.data.test_q1, self.data.test_q2])
+            best_model_name = '{}_{}_kfold{}.h5'.format(self.model_name, self.cfg.params_to_string(), kfold)
+            best_model_path = best_model_dir + best_model_name
+            early_stop = ModelSave_EarlyStop_LRDecay(model_path=best_model_path,
+                                                     save_best_only=True, save_weights_only=True,
+                                                     monitor='val_loss', lr_decay=self.cfg.lr_decay,
+                                                     patience=5, verbose=0, mode='min')
 
-                pred_train_full[valid_index] = valid_prd
-                pred_test_full += test_prd
+            # if os.path.exists(best_model_path):
+            #     model.load_weights(best_model_path)
 
-            mean_cv_scores = np.mean(cv_scores)
-            print('Mean cv auc:', mean_cv_scores)
-            print("saving for ensemble")
-            train_pred_df = pd.DataFrame({'y_pre': pred_train_full})
-            train_pred_df.to_csv(
-                "{}_roof{}_predict_train_cv{}.csv".format(self.__class__.__name__, self.kfold, mean_cv_scores),
-                index=False, columns=['y_pre'])
+            model.fit(x=[train_input1, train_input2],
+                      y=train_y,
+                      epochs=self.cfg.epochs,
+                      batch_size=self.cfg.batch_size,
+                      validation_data=([valid_input1, valid_input2], valid_y),
+                      verbose=1,
+                      callbacks=[early_stop])
 
-            pred_test_full = pred_test_full / float(self.kfold)
-            test_pred_df = pd.DataFrame({'y_pre': pred_test_full})
-            test_pred_df.to_csv(
-                "{}_roof{}_predict_test_cv{}.csv".format(self.__class__.__name__, self.kfold, mean_cv_scores),
-                index=False, columns=['y_pre'])
+            model.load_weights(filepath=best_model_path)
+
+            # predict valid
+            valid_pred_1 = model.predict([valid_input1, valid_input2], batch_size=256)[:, 0]
+            valid_pred_2 = model.predict([valid_input2, valid_input1], batch_size=256)[:, 0]
+            valid_pred = (valid_pred_1 + valid_pred_2) / 2.0
+
+            valid_logloss = early_stop.best
+            print('valid_logloss:', valid_logloss)
+            cv_logloss.append(valid_logloss)
+
+            test_pred_1 = model.predict([self.data['test_q1_words_seq'], self.data['test_q2_words_seq']],
+                                        batch_size=256)[:, 0]
+            test_pred_2 = model.predict([self.data['test_q2_words_seq'], self.data['test_q1_words_seq']],
+                                        batch_size=256)[:, 0]
+            test_pred = (test_pred_1 + test_pred_2) / 2.0
+
+            # run-out-of-fold predict
+            pred_train_full[valid_index] = valid_pred
+            pred_test_full += test_pred
+
+        print('cv result:')
+        print(cv_logloss)
+        mean_cv_logloss = np.mean(cv_logloss)
+        print('Mean cv logloss:', mean_cv_logloss)
+
+        print("saving predictions for ensemble")
+        test_df = pd.DataFrame({'y_pre': pred_train_full})
+        test_df.to_csv('{}/train_{}_{}_cv:{}_{}.zip'.format(
+            self.cfg.save_ensemble_dir, self.model_name, self.cfg.params_to_string(), mean_cv_logloss, self.time_str
+        ),
+            compression='zip',
+            index=False
+        )
+
+        test_predict = pred_test_full / float(roof_flod)
+        test_df = pd.DataFrame({'y_pre': test_predict})
+        test_df.to_csv('{}/test_{}_{}_cv:{}_{}.zip'.format(
+            self.cfg.save_ensemble_dir, self.model_name, self.cfg.params_to_string(), mean_cv_logloss, self.time_str
+        ),
+            compression='zip',
+            index=False
+        )
+
+    def _simple_train_predict(self):
+        pass
+
+    def train_and_predict(self, roof):
+        if roof:
+            self._run_out_of_fold()
         else:
-            model = self.get_model()
-            model.summary()
-
-            model.fit(x=[self.data.train_q1, self.data.train_q2],
-                      y=self.data.y_train,
-                      batch_size=self.batch_size,
-                      epochs=self.epochs,
-                      verbose=1)
-            print("training done, save to ", self.bst_model_path)
-            predict_test = model.predict([self.data.test_q1, self.data.test_q2])
-
-            prd_test_df = pd.DataFrame({'y_pre': predict_test})
-            prd_test_df.to_csv('baseline.csv', index=False, columns=['y_pre'])
+            self._simple_train_predict()

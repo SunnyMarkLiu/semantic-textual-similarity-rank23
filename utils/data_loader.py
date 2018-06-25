@@ -21,7 +21,13 @@ warnings.filterwarnings('ignore')
 
 
 def load_datas(word_embed_path, question_file, train_data_file, test_data_file,
-               max_nb_words, max_sequence_length, embedding_dim, use_data_aug, n_gram=None, random_state=42):
+               max_nb_words, max_sequence_length, embedding_dim, use_data_aug,
+               aug_frac, n_gram=None, random_state=42):
+
+    ########################################
+    ## 将读取的词向量文本转化为字典
+    ## key为词，value为对应的 300 维的向量
+    ########################################
     print('Indexing word vectors.')
     word_embeddings_index = {}
     with open(word_embed_path) as f:
@@ -99,7 +105,7 @@ def load_datas(word_embed_path, question_file, train_data_file, test_data_file,
         print('exchange q1 and q2 to augment training dataset')
         aug_train = train.copy()
         aug_train.columns = ['label', 'id', 'q2_words', 'q2_chars', 'q1_words', 'q1_chars']
-        train = pd.concat([train, aug_train.sample(frac=0.5, random_state=random_state)], axis=0)
+        train = pd.concat([train, aug_train.sample(frac=aug_frac, random_state=random_state)], axis=0)
     # shuffle
     train = train.sample(frac=1, random_state=random_state)
 
