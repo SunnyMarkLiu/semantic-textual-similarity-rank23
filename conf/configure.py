@@ -45,7 +45,8 @@ class Configure(object):
     dssm_cfg = {
         'dense_dropout' : 0.3,
         'dense_units'   : [1024, 512, 256],
-        'activation'    : 'relu'
+        'activation'    : 'relu',
+        'optimizer'     : 'adam'
     }
 
     lstm_dssm_cfg = {
@@ -53,7 +54,17 @@ class Configure(object):
         'rnn_dropout'   : 0.2,
         'dense_dropout' : 0.3,
         'dense_units'   : [512, 256],
-        'activation'    : 'relu'
+        'activation'    : 'relu',
+        'optimizer'     : 'adam'
+    }
+
+    cnn_dssm_cfg = {
+        '1d_cnn_filters_kernels' : [(128, 1), (128, 2), (128, 3), (128, 4), (32, 5), (32, 6)],
+        'padding'   : 'same',
+        'dense_units': [512, 256],
+        'dense_dropout': 0.3,
+        'activation': 'relu',
+        'optimizer': 'adam'
     }
 
     def params_to_string(self):
