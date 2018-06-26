@@ -6,7 +6,8 @@
 @time  : 2018/6/25 下午5:36
 """
 import warnings
-
+import sys
+sys.path.append("../")
 from keras import backend as K
 from keras import layers
 from keras.layers import Input, TimeDistributed, Dense, Lambda, LSTM, Conv1D, GlobalAveragePooling1D

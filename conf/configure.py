@@ -58,10 +58,10 @@ class Configure(object):
     }
 
     cnn_dssm_cfg = {
-        '1d_cnn_filters_kernels' : [(128, 1), (128, 2), (128, 3), (128, 4), (32, 5), (32, 6)],
+        '1d_cnn_filters_kernels' : [(64, 2), (64, 3), (64, 4)],
         'padding'   : 'same',
         'dense_units': [512, 256],
-        'dense_dropout': 0.3,
+        'dense_dropout': 0.5,
         'activation': 'relu',
         'optimizer': 'adam'
     }

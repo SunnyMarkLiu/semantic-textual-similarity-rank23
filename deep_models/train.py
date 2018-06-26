@@ -23,7 +23,7 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
 os.environ["CUDA_VISIBLE_DEVICES"]="2"
 
-flags.DEFINE_string('model', 'multi_dssm.DSSM', "path of the Class for the classifier")
+flags.DEFINE_string('model', 'representation_based.DSSM', "path of the Class for the classifier")
 flags.DEFINE_integer('fold', 5, "run out of fold")
 flags.DEFINE_integer('batch_size', 64, "training batch size")
 flags.DEFINE_float('lr_drop_epoch', 5.0, "every x epoch then drop learning rate")
