@@ -21,7 +21,7 @@ from conf.configure import Configure
 # disable TF debug logs
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-os.environ["CUDA_VISIBLE_DEVICES"]="2"
+# os.environ["CUDA_VISIBLE_DEVICES"]="2"
 
 flags.DEFINE_string('model', 'representation_based.DSSM', "path of the Class for the classifier")
 flags.DEFINE_integer('fold', 5, "run out of fold")

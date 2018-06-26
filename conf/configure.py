@@ -77,6 +77,23 @@ class Configure(object):
         'optimizer': 'adam'
     }
 
+    arcii_cfg = {
+        # layer 1
+        '1d_cnn_filters': 128,
+        '1d_cnn_kernel_size': 3,
+
+        # layer 2
+        '2d_cnn_filters_kernels': [(128, 3), (256, 3), (512, 3)],
+        '2d_cnn_strides': 1,
+        '2d_pool_size': 2,
+        'padding': 'same',
+
+        'dense_units': [256],
+        'dense_dropout': 0.5,
+        'activation': 'relu',
+        'optimizer': 'adam'
+    }
+
     def params_to_string(self):
         param_str = 'max_seq_len{}-max_nb_words{}_embed_train{}_aug{}_augfrac{}_seed{}_lr_decay{}'.format(
             self.max_sequence_length,

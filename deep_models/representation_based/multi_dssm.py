@@ -108,6 +108,7 @@ class CNN_DSSM(BaseModel):
 
         # merge features
         merged = concatenate([mse_diff, mul_diff])
+        merged = BatchNormalization()(merged)
 
         # The MLP that determines the outcome
         for dense_unit in self.cfg.cnn_dssm_cfg['dense_units']:
@@ -268,6 +269,7 @@ class Merge_DSSM(BaseModel):
         # merge
         # merged = concatenate([mlp_out, lstm_out, cnn_out])
         merged = concatenate([lstm_out, cnn_out])
+        merged = BatchNormalization()(merged)
 
         for dense_unit in self.cfg.merge_dssm_cfg['dense_units']:
             merged = Dropout(self.cfg.merge_dssm_cfg['dense_dropout'])(merged)
