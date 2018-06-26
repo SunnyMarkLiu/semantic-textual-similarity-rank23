@@ -49,9 +49,9 @@ class BaseModel(object):
         lrate = initial_lrate * math.pow(lr_decay, math.floor((1 + epoch) / epochs_drop))
         return lrate
 
-    def _run_out_of_fold(self, fold):
+    def _run_out_of_fold(self, fold, batch_size):
         """ roof 方式训练模型 """
-        best_model_dir = self.cfg.model_save_base_dir + self.model_name
+        best_model_dir = self.cfg.model_save_base_dir + self.model_name + '/'
         if not os.path.exists(best_model_dir):
             os.makedirs(best_model_dir)
 
@@ -61,8 +61,7 @@ class BaseModel(object):
         roof_flod = fold
 
         kf = StratifiedKFold(n_splits=roof_flod, shuffle=True, random_state=42)
-        for kfold, (train_index, valid_index) in enumerate(
-                kf.split(self.data['train_q1_words_seqs'], self.data['labels'])):
+        for kfold, (train_index, valid_index) in enumerate(kf.split(self.data['train_q1_words_seqs'], self.data['labels'])):
             print('\n============== perform fold {}, total folds {} =============='.format(kfold, roof_flod))
 
             train_input1 = self.data['train_q1_words_seqs'][train_index]
@@ -80,7 +79,7 @@ class BaseModel(object):
             ## training the model and predict
             ########################################
 
-            best_model_name = '{}_{}_kfold{}.h5'.format(self.model_name, self.cfg.params_to_string(), kfold)
+            best_model_name = '{}_{}_kfold{}_batch_size{}.h5'.format(self.model_name, self.cfg.params_to_string(), kfold, batch_size)
             best_model_path = best_model_dir + best_model_name
             early_stop = ModelSave_EarlyStop_LRDecay(model_path=best_model_path,
                                                      save_best_only=True, save_weights_only=True,
@@ -91,29 +90,44 @@ class BaseModel(object):
             # if os.path.exists(best_model_path):
             #     model.load_weights(best_model_path)
 
-            model.fit(x=[train_input1, train_input2],
+            input_channels = len(model.input_shape) / 2
+            train_x = []
+            for i in range(input_channels):
+                train_x.extend([train_input1, train_input2])
+
+            valid_x_1 = []
+            valid_x_2 = []
+            for i in range(input_channels):
+                valid_x_1.extend([valid_input1, valid_input2])
+                valid_x_2.extend([valid_input2, valid_input1])
+
+            model.fit(x=train_x,
                       y=train_y,
                       epochs=self.cfg.epochs,
-                      batch_size=self.cfg.batch_size,
-                      validation_data=([valid_input1, valid_input2], valid_y),
+                      batch_size=batch_size,
+                      validation_data=(valid_x_1, valid_y),
                       verbose=1,
                       callbacks=[early_stop])
 
             model.load_weights(filepath=best_model_path)
 
             # predict valid
-            valid_pred_1 = model.predict([valid_input1, valid_input2], batch_size=256)[:, 0]
-            valid_pred_2 = model.predict([valid_input2, valid_input1], batch_size=256)[:, 0]
+            valid_pred_1 = model.predict(valid_x_1, batch_size=256)[:, 0]
+            valid_pred_2 = model.predict(valid_x_2, batch_size=256)[:, 0]
             valid_pred = (valid_pred_1 + valid_pred_2) / 2.0
 
             valid_logloss = early_stop.best
             print('valid_logloss:', valid_logloss)
             cv_logloss.append(valid_logloss)
 
-            test_pred_1 = model.predict([self.data['test_q1_words_seq'], self.data['test_q2_words_seq']],
-                                        batch_size=256)[:, 0]
-            test_pred_2 = model.predict([self.data['test_q2_words_seq'], self.data['test_q1_words_seq']],
-                                        batch_size=256)[:, 0]
+            text_x_1 = []
+            text_x_2 = []
+            for i in range(input_channels):
+                text_x_1.extend([self.data['test_q1_words_seq'], self.data['test_q2_words_seq']])
+                text_x_2.extend([self.data['test_q2_words_seq'], self.data['test_q1_words_seq']])
+
+            test_pred_1 = model.predict(text_x_1, batch_size=256)[:, 0]
+            test_pred_2 = model.predict(text_x_2, batch_size=256)[:, 0]
             test_pred = (test_pred_1 + test_pred_2) / 2.0
 
             # run-out-of-fold predict
@@ -128,7 +142,9 @@ class BaseModel(object):
         print("saving predictions for ensemble")
         test_df = pd.DataFrame({'y_pre': pred_train_full})
         test_df.to_csv('{}train_{}_{}_cv{}_{}.csv'.format(
-                self.cfg.save_ensemble_dir, self.model_name, self.cfg.params_to_string() + '_fold{}'.format(fold), mean_cv_logloss, self.time_str
+                self.cfg.save_ensemble_dir, self.model_name,
+                self.cfg.params_to_string() + '_fold{}'.format(fold) + '_batch_size{}'.format(batch_size),
+                mean_cv_logloss, self.time_str
             ),
             index=False
         )
@@ -136,7 +152,9 @@ class BaseModel(object):
         test_predict = pred_test_full / float(roof_flod)
         test_df = pd.DataFrame({'y_pre': test_predict})
         test_df.to_csv('{}test_{}_{}_cv{}_{}.csv'.format(
-                self.cfg.save_ensemble_dir, self.model_name, self.cfg.params_to_string() + '_fold{}'.format(fold), mean_cv_logloss, self.time_str
+                self.cfg.save_ensemble_dir, self.model_name,
+                self.cfg.params_to_string() + '_fold{}'.format(fold) + '_batch_size{}'.format(batch_size),
+                mean_cv_logloss, self.time_str
             ),
             index=False
         )
@@ -144,8 +162,8 @@ class BaseModel(object):
     def _simple_train_predict(self):
         pass
 
-    def train_and_predict(self, roof, fold):
+    def train_and_predict(self, roof, fold, batch_size):
         if roof:
-            self._run_out_of_fold(fold)
+            self._run_out_of_fold(fold, batch_size)
         else:
             self._simple_train_predict()

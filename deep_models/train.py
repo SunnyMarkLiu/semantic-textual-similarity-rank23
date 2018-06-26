@@ -21,10 +21,11 @@ from conf.configure import Configure
 # disable TF debug logs
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-# os.environ["CUDA_VISIBLE_DEVICES"]="0,1"
+os.environ["CUDA_VISIBLE_DEVICES"]="2"
 
 flags.DEFINE_string('model', 'multi_dssm.DSSM', "path of the Class for the classifier")
 flags.DEFINE_integer('fold', 5, "run out of fold")
+flags.DEFINE_integer('batch_size', 64, "training batch size")
 flags.DEFINE_float('lr_drop_epoch', 5.0, "every x epoch then drop learning rate")
 FLAGS = flags.FLAGS
 
@@ -53,7 +54,7 @@ def main():
 
     model = cls(data=data, cfg=cfg, lr_drop_epoch=FLAGS.lr_drop_epoch, model_name=cls_name)
     print('===> train and predict')
-    model.train_and_predict(roof=True, fold=FLAGS.fold)
+    model.train_and_predict(roof=True, fold=FLAGS.fold, batch_size=FLAGS.batch_size)
     print('done')
 
 if __name__ == '__main__':

@@ -38,7 +38,6 @@ class Configure(object):
     aug_frac            = 0.5   # 数据扩充比例
     random_state        = 42    # 随机数状态
     n_gram              = None  # 添加 n_gram words
-    batch_size          = 64    # 训练的 batch_size
     epochs              = 100   # 训练的最大 epoch，注意设置了 early stopping
 
     # models
@@ -50,7 +49,7 @@ class Configure(object):
     }
 
     lstm_dssm_cfg = {
-        'lstm_units'    : 200,
+        'rnn_units'    : 200,
         'rnn_dropout'   : 0.2,
         'dense_dropout' : 0.3,
         'dense_units'   : [512, 256],
@@ -67,8 +66,19 @@ class Configure(object):
         'optimizer': 'adam'
     }
 
+    merge_dssm_cfg = {
+        'rnn_units': 100,
+        '1d_cnn_filters_kernels': [(128, 2), (128, 3), (128, 4)],
+        'padding': 'same',
+        'dense_units' : [256],
+        'rnn_dropout': 0.2,
+        'dense_dropout': 0.3,
+        'activation': 'relu',
+        'optimizer': 'adam'
+    }
+
     def params_to_string(self):
-        param_str = 'max_seq_len{}-max_nb_words{}_embed_train{}_aug{}_augfrac{}_seed{}_lr_decay{}_batch_size{}'.format(
+        param_str = 'max_seq_len{}-max_nb_words{}_embed_train{}_aug{}_augfrac{}_seed{}_lr_decay{}'.format(
             self.max_sequence_length,
             self.max_nb_words,
             self.embed_trainable,
@@ -76,6 +86,5 @@ class Configure(object):
             self.aug_frac,
             self.random_state,
             self.lr_decay,
-            self.batch_size
         )
         return param_str
