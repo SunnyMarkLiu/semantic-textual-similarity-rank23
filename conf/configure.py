@@ -62,7 +62,7 @@ class Configure(object):
 
     # finetuned
     cnn_dssm_cfg = {
-        '1d_cnn_filters_kernels' : [(64, 2), (64, 3), (64, 4)],
+        '1d_cnn_filters_kernels' : [(256, 2), (256, 3), (128, 4), (64, 5), (32, 6)],
         'padding'   : 'same',
         'dense_units': [512, 256],
         'dense_dropout': 0.5,
