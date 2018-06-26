@@ -1,5 +1,3 @@
 Synonyms 训练同义词
 
-词向量动态设置可训练的
-
-batch_size 设置小一点效果会更好
+# 不同的模型分别生成 matching matrix，然后堆叠起来，接CNN，（甚至可以试试：ResNet，DenseNet，Inception
