@@ -19,7 +19,7 @@ from abc import ABCMeta
 import warnings
 
 warnings.filterwarnings('ignore')
-# from keras.callbacks import LearningRateScheduler
+from keras.callbacks import TensorBoard
 from sklearn.model_selection import StratifiedKFold
 from utils.keras_utils import ModelSave_EarlyStop_LRDecay
 
@@ -49,7 +49,7 @@ class BaseModel(object):
         lrate = initial_lrate * math.pow(lr_decay, math.floor((1 + epoch) / epochs_drop))
         return lrate
 
-    def _run_out_of_fold(self, fold, batch_size):
+    def _run_out_of_fold(self, fold, batch_size, use_tensorbord):
         """ roof 方式训练模型 """
         best_model_dir = self.cfg.model_save_base_dir + self.model_name + '/'
         if not os.path.exists(best_model_dir):
@@ -86,6 +86,10 @@ class BaseModel(object):
                                                      monitor='val_loss', lr_decay=1,
                                                      patience=5, verbose=0, mode='min')
             # lr_scheduler = LearningRateScheduler(self.step_decay)
+            callbacks = [early_stop]
+            if use_tensorbord:
+                tensorbord = TensorBoard(log_dir='./los/{}/'.format(self.model_name))
+                callbacks.append(tensorbord)
 
             # if os.path.exists(best_model_path):
             #     model.load_weights(best_model_path)
@@ -107,7 +111,7 @@ class BaseModel(object):
                       batch_size=batch_size,
                       validation_data=(valid_x_1, valid_y),
                       verbose=1,
-                      callbacks=[early_stop])
+                      callbacks=callbacks)
 
             model.load_weights(filepath=best_model_path)
 
@@ -162,8 +166,8 @@ class BaseModel(object):
     def _simple_train_predict(self):
         pass
 
-    def train_and_predict(self, roof, fold, batch_size):
+    def train_and_predict(self, roof, fold, batch_size, use_tensorbord=False):
         if roof:
-            self._run_out_of_fold(fold, batch_size)
+            self._run_out_of_fold(fold, batch_size, use_tensorbord)
         else:
             self._simple_train_predict()

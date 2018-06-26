@@ -27,6 +27,7 @@ flags.DEFINE_string('model', 'representation_based.DSSM', "path of the Class for
 flags.DEFINE_integer('fold', 5, "run out of fold")
 flags.DEFINE_integer('batch_size', 64, "training batch size")
 flags.DEFINE_float('lr_drop_epoch', 5.0, "every x epoch then drop learning rate")
+flags.DEFINE_bool('use_tensorbord', False, "use tensorbord to check model")
 FLAGS = flags.FLAGS
 
 def main():
