@@ -107,7 +107,7 @@ def load_datas(word_embed_path, question_file, train_data_file, test_data_file,
         aug_train.columns = ['label', 'id', 'q2_words', 'q2_chars', 'q1_words', 'q1_chars']
         train = pd.concat([train, aug_train.sample(frac=aug_frac, random_state=random_state)], axis=0)
     # shuffle
-    train = train.sample(frac=1, random_state=random_state)
+    train = train.sample(frac=0.1, random_state=random_state)
 
     # 拼接 train 和 test，方便处理
     test['label'] = -1

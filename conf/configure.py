@@ -40,7 +40,9 @@ class Configure(object):
     n_gram              = None  # 添加 n_gram words
     epochs              = 100   # 训练的最大 epoch，注意设置了 early stopping
 
-    # models
+    ########### models config ############
+
+    # finetuned
     dssm_cfg = {
         'dense_dropout' : 0.3,
         'dense_units'   : [1024, 512, 256],
@@ -48,15 +50,17 @@ class Configure(object):
         'optimizer'     : 'adam'
     }
 
+    # finetuned
     lstm_dssm_cfg = {
-        'rnn_units'    : 200,
-        'rnn_dropout'   : 0.2,
+        'rnn_units'     : 300,
+        'rnn_dropout'   : 0.1,
         'dense_dropout' : 0.3,
         'dense_units'   : [512, 256],
         'activation'    : 'relu',
         'optimizer'     : 'adam'
     }
 
+    # finetuned
     cnn_dssm_cfg = {
         '1d_cnn_filters_kernels' : [(64, 2), (64, 3), (64, 4)],
         'padding'   : 'same',
@@ -66,12 +70,15 @@ class Configure(object):
         'optimizer': 'adam'
     }
 
+    # finetuned
     merge_dssm_cfg = {
-        'rnn_units': 100,
+        'rnn_units': 400,
+        'rnn_dropout': 0.1,
+
         '1d_cnn_filters_kernels': [(128, 2), (128, 3), (128, 4)],
         'padding': 'same',
-        'dense_units' : [256],
-        'rnn_dropout': 0.2,
+
+        'dense_units' : [512],
         'dense_dropout': 0.3,
         'activation': 'relu',
         'optimizer': 'adam'
@@ -93,6 +100,19 @@ class Configure(object):
         'activation': 'relu',
         'optimizer': 'adam'
     }
+
+    match_pyramid_cfg = {
+        '2d_cnn_filters_kernels': [(128, 3), (256, 3), (512, 3)],
+        '2d_cnn_strides': 1,
+        '2d_pool_size': 2,
+        'padding': 'same',
+
+        'dense_units': [256],
+        'dense_dropout': 0.5,
+        'activation': 'relu',
+        'optimizer': 'adam'
+    }
+
 
     def params_to_string(self):
         param_str = 'max_seq_len{}-max_nb_words{}_embed_train{}_aug{}_augfrac{}_seed{}_lr_decay{}'.format(
