@@ -7,3 +7,4 @@
 """
 from .arcii import ARCII
 from .match_pyramid import MatchPyramid
+from .multi_channel_match import MultiChannelMatch
