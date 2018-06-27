@@ -34,7 +34,7 @@ class Configure(object):
     max_nb_words        = 20890 # 词汇表的最大词汇数
     embedding_dim       = 300   # 词向量的维度
     embed_trainable     = True  # 词向量是否可训练
-    use_data_aug        = True  # 是否使用数据扩充
+    use_data_aug        = False  # 是否使用数据扩充
     aug_frac            = 0.5   # 数据扩充比例
     random_state        = 42    # 随机数状态
     n_gram              = None  # 添加 n_gram words
@@ -44,6 +44,7 @@ class Configure(object):
 
     # finetuned
     dssm_cfg = {
+        'embed_dropout': 0.3,
         'dense_dropout' : 0.3,
         'dense_units'   : [1024, 512, 256],
         'activation'    : 'relu',
@@ -52,6 +53,7 @@ class Configure(object):
 
     # finetuned
     lstm_dssm_cfg = {
+        'embed_dropout': 0.3,
         'rnn_units'     : 300,
         'rnn_dropout'   : 0.1,
         'dense_dropout' : 0.3,
@@ -62,6 +64,7 @@ class Configure(object):
 
     # finetuned
     cnn_dssm_cfg = {
+        'embed_dropout': 0.3,
         '1d_cnn_filters_kernels' : [(256, 2), (256, 3), (128, 4), (64, 5), (32, 6)],
         'padding'   : 'same',
         'dense_units': [512, 256],
@@ -72,6 +75,8 @@ class Configure(object):
 
     # finetuned
     merge_dssm_cfg = {
+        'embed_dropout': 0.3,
+
         'rnn_units': 400,
         'rnn_dropout': 0.1,
 
@@ -86,6 +91,8 @@ class Configure(object):
 
     # overfitting easily?
     arcii_cfg = {
+        'embed_dropout': 0.3,
+
         # layer 1
         '1d_cnn_filters': 128,
         '1d_cnn_kernel_size': 3,
@@ -103,6 +110,8 @@ class Configure(object):
     }
 
     match_pyramid_cfg = {
+        'embed_dropout': 0.3,
+
         '2d_cnn_filters_kernels': [(32, 3), (64, 3), (128, 3),],
         '2d_cnn_strides': 1,
         '2d_pool_size': 2,

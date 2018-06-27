@@ -34,6 +34,9 @@ class MatchPyramid(BaseModel):
         embed_seq_1 = embedding_layer(seq_1_input)
         embed_seq_2 = embedding_layer(seq_2_input)
 
+        embed_seq_1 = Dropout(self.cfg.match_pyramid_cfg['embed_dropout'])(embed_seq_1)
+        embed_seq_2 = Dropout(self.cfg.match_pyramid_cfg['embed_dropout'])(embed_seq_2)
+
         # dot product to get Matching Matrix
         match_matrix = Dot(axes=[2, 2], normalize=False)([embed_seq_1, embed_seq_2])
         # filter channel = 1

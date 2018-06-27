@@ -35,6 +35,9 @@ class DSSM(BaseModel):
         embed_seq_1 = embedding_layer(seq_1_input)
         embed_seq_2 = embedding_layer(seq_2_input)
 
+        embed_seq_1 = Dropout(self.cfg.dssm_cfg['embed_dropout'])(embed_seq_1)
+        embed_seq_2 = Dropout(self.cfg.dssm_cfg['embed_dropout'])(embed_seq_2)
+
         q1 = TimeDistributed(Dense(self.cfg.embedding_dim, activation='relu'))(embed_seq_1)
         q1 = Lambda(lambda x: K.max(x, axis=1), output_shape=(self.cfg.embedding_dim,))(q1)
 
@@ -79,6 +82,9 @@ class CNN_DSSM(BaseModel):
         seq_2_input = Input(shape=(self.cfg.max_sequence_length,), dtype='int32')
         embed_seq_1 = embedding_layer(seq_1_input)
         embed_seq_2 = embedding_layer(seq_2_input)
+
+        embed_seq_1 = Dropout(self.cfg.cnn_dssm_cfg['embed_dropout'])(embed_seq_1)
+        embed_seq_2 = Dropout(self.cfg.cnn_dssm_cfg['embed_dropout'])(embed_seq_2)
 
         # Run through CONV + GAP layers
         cnn_out1 = []
@@ -139,6 +145,9 @@ class LSTM_DSSM(BaseModel):
         embed_seq_1 = embedding_layer(seq_1_input)
         embed_seq_2 = embedding_layer(seq_2_input)
 
+        embed_seq_1 = Dropout(self.cfg.lstm_dssm_cfg['embed_dropout'])(embed_seq_1)
+        embed_seq_2 = Dropout(self.cfg.lstm_dssm_cfg['embed_dropout'])(embed_seq_2)
+
         # LSTM encode question input
         # a shared LSTM layer can give better generalization
         lstm_layer = LSTM(
@@ -188,6 +197,10 @@ class Merge_DSSM(BaseModel):
         seq_2_input = Input(shape=(self.cfg.max_sequence_length,), dtype='int32')
         embed_seq_1 = embedding_layer(seq_1_input)
         embed_seq_2 = embedding_layer(seq_2_input)
+
+        embed_seq_1 = Dropout(self.cfg.merge_dssm_cfg['embed_dropout'])(embed_seq_1)
+        embed_seq_2 = Dropout(self.cfg.merge_dssm_cfg['embed_dropout'])(embed_seq_2)
+
         q1_encode = TimeDistributed(Dense(self.cfg.embedding_dim, activation='relu'))(embed_seq_1)
         q1_encode = Lambda(lambda x: K.max(x, axis=1), output_shape=(self.cfg.embedding_dim,))(q1_encode)
         q2_encode = TimeDistributed(Dense(self.cfg.embedding_dim, activation='relu'))(embed_seq_2)
@@ -208,6 +221,10 @@ class Merge_DSSM(BaseModel):
         seq_2_input = Input(shape=(self.cfg.max_sequence_length,), dtype='int32')
         embed_seq_1 = embedding_layer(seq_1_input)
         embed_seq_2 = embedding_layer(seq_2_input)
+
+        embed_seq_1 = Dropout(self.cfg.merge_dssm_cfg['embed_dropout'])(embed_seq_1)
+        embed_seq_2 = Dropout(self.cfg.merge_dssm_cfg['embed_dropout'])(embed_seq_2)
+
         # LSTM encode question input
         # a shared LSTM layer can give better generalization
         lstm_layer = LSTM(
@@ -233,6 +250,9 @@ class Merge_DSSM(BaseModel):
         seq_2_input = Input(shape=(self.cfg.max_sequence_length,), dtype='int32')
         embed_seq_1 = embedding_layer(seq_1_input)
         embed_seq_2 = embedding_layer(seq_2_input)
+
+        embed_seq_1 = Dropout(self.cfg.merge_dssm_cfg['embed_dropout'])(embed_seq_1)
+        embed_seq_2 = Dropout(self.cfg.merge_dssm_cfg['embed_dropout'])(embed_seq_2)
 
         # Run through CONV + GAP layers
         cnn_out1 = []

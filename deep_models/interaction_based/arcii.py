@@ -37,6 +37,9 @@ class ARCII(BaseModel):
         embed_seq_1 = embedding_layer(seq_1_input)
         embed_seq_2 = embedding_layer(seq_2_input)
 
+        embed_seq_1 = Dropout(self.cfg.arcii_cfg['embed_dropout'])(embed_seq_1)
+        embed_seq_2 = Dropout(self.cfg.arcii_cfg['embed_dropout'])(embed_seq_2)
+
         # layer1 1D-convolution
         conv1 = Conv1D(
             filters=self.cfg.arcii_cfg['1d_cnn_filters'],
