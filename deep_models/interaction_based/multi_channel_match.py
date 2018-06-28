@@ -99,45 +99,6 @@ class MultiChannelMatch(BaseModel):
         m3_q2 = shared_m3_embed_dropout_layer(m3_q2)
         m3_q2 = shared_m3_lstm_layer(m3_q2)
 
-        ########## model4 CNN+BiLSTM #########
-        shared_m4_embed_layer = Embedding(data['nb_words'], self.cfg.embedding_dim, weights=[data['embedding_matrix']],
-                                          input_length=self.cfg.max_sequence_length, trainable=self.cfg.embed_trainable)
-        shared_m4_embed_dropout_layer = Dropout(self.cfg.multi_channel_match_cfg['embed_dropout'])
-
-        m4_q1 = shared_m4_embed_layer(m4_q1_input)
-        m4_q1 = shared_m4_embed_dropout_layer(m4_q1)
-
-        m4_q2 = shared_m4_embed_layer(m4_q2_input)
-        m4_q2 = shared_m4_embed_dropout_layer(m4_q2)
-
-        # Run through CONV + GAP layers
-        cnn_out1 = []
-        cnn_out2 = []
-        merge_cnn_out_shape = 0
-        cnn_module_count = len(self.cfg.multi_channel_match_cfg['1d_cnn_filters_kernels'])
-        for filters, kernel_size in self.cfg.multi_channel_match_cfg['1d_cnn_filters_kernels']:
-            conv_layer = Conv1D(filters=filters, kernel_size=kernel_size,
-                                padding=self.cfg.multi_channel_match_cfg['padding'],
-                                activation=self.cfg.multi_channel_match_cfg['activation'])
-            conv1 = conv_layer(m4_q1)
-            glob1 = GlobalAveragePooling1D()(conv1)
-            cnn_out1.append(glob1)
-
-            conv2 = conv_layer(m4_q2)
-            glob2 = GlobalAveragePooling1D()(conv2)
-            cnn_out2.append(glob2)
-
-            merge_cnn_out_shape += filters
-
-        m4_q1 = concatenate(cnn_out1)
-        m4_q2 = concatenate(cnn_out2)
-
-        m4_q1 = Reshape((cnn_module_count, merge_cnn_out_shape / cnn_module_count))(m4_q1)
-        m4_q2 = Reshape((cnn_module_count, merge_cnn_out_shape / cnn_module_count))(m4_q2)
-
-        shared_m4_lstm_layer = CuDNNGRU(self.cfg.multi_channel_match_cfg['rnn_units'])
-        m4_q1 = shared_m4_lstm_layer(m4_q1)
-        m4_q2 = shared_m4_lstm_layer(m4_q2)
 
         ################ clac difference over sentences of every models ################
         mse_diff_1 = Lambda(lambda x: K.pow(x[0] - x[1], 2), output_shape=(self.cfg.multi_channel_match_cfg['mlp_dense_units'],))([m1_q1, m1_q2])
@@ -149,22 +110,19 @@ class MultiChannelMatch(BaseModel):
         mse_diff_3 = Lambda(lambda x: K.pow(x[0] - x[1], 2), output_shape=(self.cfg.multi_channel_match_cfg['rnn_units'],))([m3_q1, m3_q2])
         mul_diff_3 = Lambda(lambda x: x[0] * x[1], output_shape=(self.cfg.multi_channel_match_cfg['rnn_units'],))([m3_q1, m3_q2])
 
-        mse_diff_4 = Lambda(lambda x: K.pow(x[0] - x[1], 2), output_shape=(self.cfg.multi_channel_match_cfg['rnn_units'],))([m4_q1, m4_q2])
-        mul_diff_4 = Lambda(lambda x: x[0] * x[1], output_shape=(self.cfg.multi_channel_match_cfg['rnn_units'],))([m4_q1, m4_q2])
-
         ################ simple ################
         if self.cfg.multi_channel_match_cfg['simple_architecture']:
-            merged = concatenate([mse_diff_1, mul_diff_1, mse_diff_2, mul_diff_2, mse_diff_3, mul_diff_3, mse_diff_4, mul_diff_4])
+            merged = concatenate([mse_diff_1, mul_diff_1, mse_diff_2, mul_diff_2, mse_diff_3, mul_diff_3])
             features = BatchNormalization()(merged)
         else:
             ################ complicated ################
             # concate sentence representations
-            mse_diff = concatenate([mse_diff_1, mse_diff_2, mse_diff_3, mse_diff_4])
-            mul_diff = concatenate([mul_diff_1, mul_diff_2, mul_diff_3, mul_diff_4])
+            mse_diff = concatenate([mse_diff_1, mse_diff_2, mse_diff_3])
+            mul_diff = concatenate([mul_diff_1, mul_diff_2, mul_diff_3])
 
             # sentence representation dimention
             represent_dim = self.cfg.multi_channel_match_cfg['mlp_dense_units'] + merge_cnn_out_shape + \
-                            self.cfg.multi_channel_match_cfg['rnn_units'] + self.cfg.multi_channel_match_cfg['rnn_units']
+                            self.cfg.multi_channel_match_cfg['rnn_units']
             width = int(math.sqrt(represent_dim))
             heigh = width
 

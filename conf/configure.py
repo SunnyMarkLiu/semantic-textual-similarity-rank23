@@ -131,7 +131,7 @@ class Configure(object):
 
         'simple_architecture': False,   # completed perform better
 
-        'mlp_dense_units': 225,
+        'mlp_dense_units': 200,
         'embed_dropout': 0.1,
         'rnn_units': 300,
 
