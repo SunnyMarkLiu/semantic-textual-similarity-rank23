@@ -99,26 +99,26 @@ class MultiChannelMatch(BaseModel):
         m3_q2 = shared_m3_embed_dropout_layer(m3_q2)
         m3_q2 = shared_m3_lstm_layer(m3_q2)
 
-
-        ################ clac difference over sentences of every models ################
-        mse_diff_1 = Lambda(lambda x: K.pow(x[0] - x[1], 2), output_shape=(self.cfg.multi_channel_match_cfg['mlp_dense_units'],))([m1_q1, m1_q2])
-        mul_diff_1 = Lambda(lambda x: x[0] * x[1], output_shape=(self.cfg.multi_channel_match_cfg['mlp_dense_units'],))([m1_q1, m1_q2])
-
-        mse_diff_2 = Lambda(lambda x: K.pow(x[0] - x[1], 2), output_shape=(merge_cnn_out_shape,))([m2_q1, m2_q2])
-        mul_diff_2 = Lambda(lambda x: x[0] * x[1], output_shape=(merge_cnn_out_shape,))([m2_q1, m2_q2])
-
-        mse_diff_3 = Lambda(lambda x: K.pow(x[0] - x[1], 2), output_shape=(self.cfg.multi_channel_match_cfg['rnn_units'],))([m3_q1, m3_q2])
-        mul_diff_3 = Lambda(lambda x: x[0] * x[1], output_shape=(self.cfg.multi_channel_match_cfg['rnn_units'],))([m3_q1, m3_q2])
-
         ################ simple ################
         if self.cfg.multi_channel_match_cfg['simple_architecture']:
+            # clac difference over sentences of every models
+            mse_diff_1 = Lambda(lambda x: K.pow(x[0] - x[1], 2), output_shape=(self.cfg.multi_channel_match_cfg['mlp_dense_units'],))([m1_q1, m1_q2])
+            mul_diff_1 = Lambda(lambda x: x[0] * x[1], output_shape=(self.cfg.multi_channel_match_cfg['mlp_dense_units'],))([m1_q1, m1_q2])
+
+            mse_diff_2 = Lambda(lambda x: K.pow(x[0] - x[1], 2), output_shape=(merge_cnn_out_shape,))([m2_q1, m2_q2])
+            mul_diff_2 = Lambda(lambda x: x[0] * x[1], output_shape=(merge_cnn_out_shape,))([m2_q1, m2_q2])
+
+            mse_diff_3 = Lambda(lambda x: K.pow(x[0] - x[1], 2), output_shape=(self.cfg.multi_channel_match_cfg['rnn_units'],))([m3_q1, m3_q2])
+            mul_diff_3 = Lambda(lambda x: x[0] * x[1], output_shape=(self.cfg.multi_channel_match_cfg['rnn_units'],))([m3_q1, m3_q2])
+
             merged = concatenate([mse_diff_1, mul_diff_1, mse_diff_2, mul_diff_2, mse_diff_3, mul_diff_3])
             features = BatchNormalization()(merged)
         else:
             ################ complicated ################
+
             # concate sentence representations
-            mse_diff = concatenate([mse_diff_1, mse_diff_2, mse_diff_3])
-            mul_diff = concatenate([mul_diff_1, mul_diff_2, mul_diff_3])
+            q1_encode = concatenate([m1_q1, m2_q1, m3_q1])
+            q2_encode = concatenate([m1_q2, m2_q2, m3_q2])
 
             # sentence representation dimention
             represent_dim = self.cfg.multi_channel_match_cfg['mlp_dense_units'] + merge_cnn_out_shape + \
@@ -126,10 +126,10 @@ class MultiChannelMatch(BaseModel):
             width = int(math.sqrt(represent_dim))
             heigh = width
 
-            mse_diff = Reshape((width, heigh, -1))(mse_diff)
-            mul_diff = Reshape((width, heigh, -1))(mul_diff)
+            q1_encode = Reshape((width, heigh, -1))(q1_encode)
+            q2_encode = Reshape((width, heigh, -1))(q2_encode)
 
-            match_matrix = concatenate([mse_diff, mul_diff], axis=-1)
+            match_matrix = concatenate([q1_encode, q2_encode], axis=-1)
             match_matrix = Reshape((width, heigh, -1))(match_matrix)
 
             # # arcii-like operation
