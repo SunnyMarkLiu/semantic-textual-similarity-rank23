@@ -49,7 +49,7 @@ class BaseModel(object):
         lrate = initial_lrate * math.pow(lr_decay, math.floor((1 + epoch) / epochs_drop))
         return lrate
 
-    def _run_out_of_fold(self, fold, batch_size, use_tensorbord):
+    def _run_out_of_fold(self, fold, batch_size, predict_batch_size, use_tensorbord):
         """ roof 方式训练模型 """
         best_model_dir = self.cfg.model_save_base_dir + self.model_name + '/'
         if not os.path.exists(best_model_dir):
@@ -130,8 +130,8 @@ class BaseModel(object):
                 text_x_1.extend([self.data['test_q1_words_seq'], self.data['test_q2_words_seq']])
                 text_x_2.extend([self.data['test_q2_words_seq'], self.data['test_q1_words_seq']])
 
-            test_pred_1 = model.predict(text_x_1, batch_size=256)[:, 0]
-            test_pred_2 = model.predict(text_x_2, batch_size=256)[:, 0]
+            test_pred_1 = model.predict(text_x_1, batch_size=predict_batch_size)[:, 0]
+            test_pred_2 = model.predict(text_x_2, batch_size=predict_batch_size)[:, 0]
             test_pred = (test_pred_1 + test_pred_2) / 2.0
 
             # run-out-of-fold predict
@@ -166,8 +166,8 @@ class BaseModel(object):
     def _simple_train_predict(self):
         pass
 
-    def train_and_predict(self, roof, fold, batch_size, use_tensorbord=False):
+    def train_and_predict(self, roof, fold, batch_size, predict_batch_size, use_tensorbord=False):
         if roof:
-            self._run_out_of_fold(fold, batch_size, use_tensorbord)
+            self._run_out_of_fold(fold, batch_size, predict_batch_size, use_tensorbord)
         else:
             self._simple_train_predict()

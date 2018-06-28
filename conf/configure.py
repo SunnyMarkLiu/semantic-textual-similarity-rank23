@@ -33,8 +33,8 @@ class Configure(object):
     max_sequence_length = 30    # 序列的最大长度
     max_nb_words        = 20890 # 词汇表的最大词汇数
     embedding_dim       = 300   # 词向量的维度
-    embed_trainable     = True  # 词向量是否可训练
-    use_data_aug        = True  # 是否使用数据扩充
+    embed_trainable     = False  # 词向量是否可训练
+    use_data_aug        = False  # 是否使用数据扩充
     aug_frac            = 1   # 数据扩充比例
     random_state        = 42    # 随机数状态
     n_gram              = None  # 添加 n_gram words
@@ -125,21 +125,27 @@ class Configure(object):
 
     # my model
     multi_channel_match_cfg = {
+        # 4个模型，每个模型的两个 sentence 求 diff， 拼接每个模型的 diff，转成矩阵，后面接 CNN
+        # model1（mlp）：diff 输出维度等于 mlp_dense_units 225
+        # model2（cnn）：diff 输出维度等于所有卷基层的 filter 数，100 * 4 = 400
+        # model3（GRU）：diff 输出维度等于 rnn_units 300
+        # model4（CNN-GRU）：diff 输出维度等于 rnn_units 300
+        # 拼接之后，整体 diff 输出维度 225+400+300+300 = 1225 = 35 * 35，即矩阵的大小为 35x35，之后进行卷积
 
         'simple_architecture': False,   # completed perform better
 
-        'mlp_dense_units': 200,
+        'mlp_dense_units': 225,
         'embed_dropout': 0.1,
-        'rnn_units': 100,
+        'rnn_units': 300,
 
-        '1d_cnn_filters_kernels': [(34, 2), (33, 3), (33, 4)],
+        '1d_cnn_filters_kernels': [(100, 2), (100, 3), (100, 4), (100, 5)],  # 20*20=400, 30*30=900，必须是平方数
         'padding': 'same',
 
-        '2d_cnn_filters_kernels': [(32, 3), (64, 3), (128, 3), ],
+        '2d_cnn_filters_kernels': [(64, 3), (128, 3), (256, 3)],
         '2d_cnn_strides': 1,
         '2d_pool_size': 2,
 
-        'dense_units': [512, 128],
+        'dense_units': [512, 128, 64],
         'dense_dropout': 0.5,
 
         'activation': 'relu',
