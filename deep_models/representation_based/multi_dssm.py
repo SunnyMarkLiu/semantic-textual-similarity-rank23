@@ -10,10 +10,11 @@ import sys
 sys.path.append("../")
 from keras import backend as K
 from keras import layers
-from keras.layers import Input, TimeDistributed, Dense, Lambda, LSTM, Conv1D, GlobalAveragePooling1D
+from keras.layers import Input, TimeDistributed, Dense, Lambda, CuDNNGRU, Conv1D, GlobalAveragePooling1D
 from keras.layers import concatenate, Dropout, BatchNormalization
 from keras.layers.embeddings import Embedding
 from keras.models import Model
+from keras.utils import plot_model
 
 warnings.filterwarnings('ignore')
 from base_model import BaseModel
@@ -63,6 +64,8 @@ class DSSM(BaseModel):
                       outputs=preds)
         model.compile(loss='binary_crossentropy', optimizer=self.cfg.dssm_cfg['optimizer'], metrics=['binary_accuracy'])
         # model.summary()
+        plot_model(model, to_file='../assets/DSSM.png', show_shapes=True, show_layer_names=True)
+
 
         return model
 
@@ -128,11 +131,12 @@ class CNN_DSSM(BaseModel):
         model.compile(loss='binary_crossentropy', optimizer=self.cfg.cnn_dssm_cfg['optimizer'],
                       metrics=['binary_accuracy'])
         # model.summary()
+        plot_model(model, to_file='../assets/CNN_DSSM.png', show_shapes=True, show_layer_names=True)
 
         return model
 
 
-class LSTM_DSSM(BaseModel):
+class GRU_DSSM(BaseModel):
 
     def build_model(self, data):
         embedding_layer = Embedding(data['nb_words'],
@@ -145,33 +149,36 @@ class LSTM_DSSM(BaseModel):
         embed_seq_1 = embedding_layer(seq_1_input)
         embed_seq_2 = embedding_layer(seq_2_input)
 
-        embed_seq_1 = Dropout(self.cfg.lstm_dssm_cfg['embed_dropout'])(embed_seq_1)
-        embed_seq_2 = Dropout(self.cfg.lstm_dssm_cfg['embed_dropout'])(embed_seq_2)
+        embed_seq_1 = Dropout(self.cfg.gru_dssm_cfg['embed_dropout'])(embed_seq_1)
+        embed_seq_2 = Dropout(self.cfg.gru_dssm_cfg['embed_dropout'])(embed_seq_2)
 
         # LSTM encode question input
         # a shared LSTM layer can give better generalization
-        lstm_layer = LSTM(
-            units=self.cfg.lstm_dssm_cfg['rnn_units'],
-            dropout=self.cfg.lstm_dssm_cfg['rnn_dropout'],
-            recurrent_dropout=self.cfg.lstm_dssm_cfg['rnn_dropout']
-        )
-        q1_encode = lstm_layer(embed_seq_1)
-        q2_encode = lstm_layer(embed_seq_2)
+        rnn_layer = CuDNNGRU(self.cfg.gru_dssm_cfg['rnn_units'])
+        # rnn_layer = LSTM(
+        #     units=self.cfg.gru_dssm_cfg['rnn_units'],
+        #     dropout=self.cfg.gru_dssm_cfg['rnn_dropout'],
+        #     recurrent_dropout=self.cfg.gru_dssm_cfg['rnn_dropout']
+        # )
+        q1_encode = rnn_layer(embed_seq_1)
+        q2_encode = rnn_layer(embed_seq_2)
 
         merged = concatenate([q1_encode, q2_encode])
         merged = BatchNormalization()(merged)
 
-        for dense_unit in self.cfg.lstm_dssm_cfg['dense_units']:
-            merged = Dropout(self.cfg.lstm_dssm_cfg['dense_dropout'])(merged)
-            merged = Dense(dense_unit, activation=self.cfg.lstm_dssm_cfg['activation'])(merged)
+        for dense_unit in self.cfg.gru_dssm_cfg['dense_units']:
+            merged = Dropout(self.cfg.gru_dssm_cfg['dense_dropout'])(merged)
+            merged = Dense(dense_unit, activation=self.cfg.gru_dssm_cfg['activation'])(merged)
             merged = BatchNormalization()(merged)
 
         preds = Dense(1, activation='sigmoid')(merged)
         model = Model(inputs=[seq_1_input, seq_2_input],
                       outputs=preds)
-        model.compile(loss='binary_crossentropy', optimizer=self.cfg.lstm_dssm_cfg['optimizer'],
+        model.compile(loss='binary_crossentropy', optimizer=self.cfg.gru_dssm_cfg['optimizer'],
                       metrics=['binary_accuracy'])
         # model.summary()
+        plot_model(model, to_file='../assets/GRU_DSSM.png', show_shapes=True, show_layer_names=True)
+
 
         return model
 
@@ -227,13 +234,14 @@ class Merge_DSSM(BaseModel):
 
         # LSTM encode question input
         # a shared LSTM layer can give better generalization
-        lstm_layer = LSTM(
-            units=self.cfg.merge_dssm_cfg['rnn_units'],
-            dropout=self.cfg.merge_dssm_cfg['rnn_dropout'],
-            recurrent_dropout=self.cfg.merge_dssm_cfg['rnn_dropout']
-        )
-        q1_encode = lstm_layer(embed_seq_1)
-        q2_encode = lstm_layer(embed_seq_2)
+        rnn_layer = CuDNNGRU(self.cfg.gru_dssm_cfg['rnn_units'])
+        # rnn_layer = LSTM(
+        #     units=self.cfg.merge_dssm_cfg['rnn_units'],
+        #     dropout=self.cfg.merge_dssm_cfg['rnn_dropout'],
+        #     recurrent_dropout=self.cfg.merge_dssm_cfg['rnn_dropout']
+        # )
+        q1_encode = rnn_layer(embed_seq_1)
+        q2_encode = rnn_layer(embed_seq_2)
 
         merged = self._get_diff_features(q1_encode, q2_encode, (self.cfg.merge_dssm_cfg['rnn_units'],))
         lstm_out = BatchNormalization()(merged)
@@ -304,5 +312,6 @@ class Merge_DSSM(BaseModel):
         model.compile(loss='binary_crossentropy', optimizer=self.cfg.merge_dssm_cfg['optimizer'],
                       metrics=['binary_accuracy'])
         # model.summary()
+        plot_model(model, to_file='../assets/Merge_DSSM.png', show_shapes=True, show_layer_names=True)
 
         return model

@@ -20,9 +20,15 @@ import warnings
 warnings.filterwarnings('ignore')
 
 
+def data_augment():
+    """
+    扩增训练集
+    """
+
+
 def load_datas(word_embed_path, question_file, train_data_file, test_data_file,
                max_nb_words, max_sequence_length, embedding_dim, use_data_aug,
-               aug_frac, n_gram=None, random_state=42):
+               aug_frac, random_state=42):
 
     ########################################
     ## 将读取的词向量文本转化为字典
@@ -58,56 +64,6 @@ def load_datas(word_embed_path, question_file, train_data_file, test_data_file,
     test = pd.merge(test, questions, left_on=['q2'], right_on=['qid'], how='left')
     test = test.rename(columns={'words': 'q2_words', 'chars': 'q2_chars'})
     test.drop(['q1', 'q2', 'qid'], axis=1, inplace=True)
-
-    # add n-gram features
-    if n_gram is not None and n_gram > 1:
-        print('add ngram words, ngram =', n_gram)
-
-        def add_ngram_words(input_str, ngram_value=2):
-            """
-            Extract a set of n-grams from a list of integers.
-            """
-            input_list = input_str.split(' ')
-            if ngram_value == 2:
-                ngram_list = ['{}_{}'.format(input_list[i], input_list[i + ngram_value - 1]) \
-                              for i in range(len(input_list) - ngram_value + 1)]
-            elif ngram_value == 3:
-                ngram_list = ['{}_{}_{}'.format(input_list[i], input_list[i + ngram_value - 2], input_list[i + ngram_value - 1]) \
-                    for i in range(len(input_list) - ngram_value + 1)]
-            else:
-                ngram_list = []
-
-            for ngram_words in ngram_list:
-                words = ngram_words.split('_')
-                if n_gram == 2:
-                    n_gram_embed = (word_embeddings_index[words[0]] + word_embeddings_index[words[1]]) / 2.0
-                elif n_gram == 3:
-                    n_gram_embed = (word_embeddings_index[words[0]] + word_embeddings_index[words[1]] + word_embeddings_index[words[2]]) / 3.0
-                else:
-                    n_gram_embed = np.random.random(size=(embedding_dim,))
-
-                # 添加ngram词汇
-                word_embeddings_index[ngram_words] = n_gram_embed
-
-            input_list = input_list + ngram_list
-            result = ' '.join(input_list)
-            return result
-
-        train['q1_words'] = train['q1_words'].map(lambda words: add_ngram_words(words, ngram_value=n_gram))
-        train['q2_words'] = train['q2_words'].map(lambda words: add_ngram_words(words, ngram_value=n_gram))
-        test['q1_words'] = test['q1_words'].map(lambda words: add_ngram_words(words, ngram_value=n_gram))
-        test['q2_words'] = test['q2_words'].map(lambda words: add_ngram_words(words, ngram_value=n_gram))
-
-        print('Found %d word vectors after ngram.' % len(word_embeddings_index))
-
-    # 数据增强:交换 q1 和 q2
-    if use_data_aug:
-        print('exchange q1 and q2 to augment training dataset')
-        aug_train = train.copy()
-        aug_train.columns = ['label', 'id', 'q2_words', 'q2_chars', 'q1_words', 'q1_chars']
-        train = pd.concat([train, aug_train.sample(frac=aug_frac, random_state=random_state)], axis=0)
-    # shuffle
-    train = train.sample(frac=1, random_state=random_state)
 
     # 拼接 train 和 test，方便处理
     test['label'] = -1

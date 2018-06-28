@@ -37,7 +37,6 @@ class Configure(object):
     use_data_aug        = False  # 是否使用数据扩充
     aug_frac            = 1   # 数据扩充比例
     random_state        = 42    # 随机数状态
-    n_gram              = None  # 添加 n_gram words
     epochs              = 100   # 训练的最大 epoch，注意设置了 early stopping
 
     ########### models config ############
@@ -52,12 +51,11 @@ class Configure(object):
     }
 
     # finetuned
-    lstm_dssm_cfg = {
+    gru_dssm_cfg = {
         'embed_dropout': 0.3,
         'rnn_units'     : 300,
-        'rnn_dropout'   : 0.1,
         'dense_dropout' : 0.3,
-        'dense_units'   : [512, 256],
+        'dense_units'   : [1024, 512, 256],
         'activation'    : 'relu',
         'optimizer'     : 'adam'
     }
@@ -78,7 +76,6 @@ class Configure(object):
         'embed_dropout': 0.3,
 
         'rnn_units': 400,
-        'rnn_dropout': 0.1,
 
         '1d_cnn_filters_kernels': [(128, 2), (128, 3), (128, 4)],
         'padding': 'same',
@@ -145,11 +142,11 @@ class Configure(object):
         '2d_cnn_strides': 1,
         '2d_pool_size': 2,
 
-        'dense_units': [512, 128, 64],
+        'dense_units': [1024, 512, 256],
         'dense_dropout': 0.5,
 
         'activation': 'relu',
-        'optimizer': 'adam'
+        'lr': 0.0005
     }
 
     def params_to_string(self):

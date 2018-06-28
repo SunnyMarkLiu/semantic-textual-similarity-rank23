@@ -15,6 +15,7 @@ from keras.layers import Input, TimeDistributed, Dense, Lambda, Conv1D, Conv2D, 
 from keras.layers import Dropout, BatchNormalization, Reshape, Flatten, concatenate, CuDNNGRU
 from keras.layers.embeddings import Embedding
 from keras.models import Model
+from keras import optimizers
 from keras.utils import plot_model
 from base_model import BaseModel
 
@@ -212,8 +213,10 @@ class MultiChannelMatch(BaseModel):
                               m3_q1_input, m3_q2_input,
                               m4_q1_input, m4_q2_input],
                       outputs=preds)
-        model.compile(loss='binary_crossentropy', optimizer=self.cfg.arcii_cfg['optimizer'],
-                      metrics=['binary_accuracy'])
+
+        optimizer = optimizers.Adam(lr=self.cfg.multi_channel_match_cfg['lr'])
+
+        model.compile(loss='binary_crossentropy', optimizer=optimizer, metrics=['binary_accuracy'])
         # model.summary()
         plot_model(model, to_file='../assets/MultiChannelMatch.png', show_shapes=True, show_layer_names=True)
 

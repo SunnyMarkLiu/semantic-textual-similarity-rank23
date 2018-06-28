@@ -43,7 +43,7 @@ def main():
         train_data_file=cfg.train_data_file, test_data_file=cfg.test_data_file,
         max_nb_words=cfg.max_nb_words, max_sequence_length=cfg.max_sequence_length,
         embedding_dim=cfg.embedding_dim, use_data_aug=cfg.use_data_aug,
-        aug_frac=cfg.aug_frac, random_state=cfg.random_state, n_gram=cfg.n_gram
+        aug_frac=cfg.aug_frac, random_state=cfg.random_state
     )
 
     # create model
