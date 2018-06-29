@@ -18,7 +18,7 @@ from abc import ABCMeta
 
 from keras.callbacks import TensorBoard
 from sklearn.model_selection import StratifiedKFold
-from utils.keras_utils import ModelSave_EarlyStop_LRDecay
+from utils.keras_callbaks import ModelSave_EarlyStop_LRDecay
 
 class BaseModel(object):
     """ Abstract base model for all text matching model """
@@ -61,18 +61,18 @@ class BaseModel(object):
         for kfold, (train_index, valid_index) in enumerate(kf.split(self.data['train_q1_words_seqs'], self.data['labels'])):
             print('\n============== perform fold {}, total folds {} =============='.format(kfold, roof_flod))
 
-            train_input_1 = self.data['train_q1_words_seqs'][train_index].tolist()
-            train_input_2 = self.data['train_q2_words_seqs'][train_index].tolist()
-            train_y = self.data['labels'][train_index].tolist()
+            train_input1 = self.data['train_q1_words_seqs'][train_index]
+            train_input2 = self.data['train_q2_words_seqs'][train_index]
+            train_y = self.data['labels'][train_index]
 
             valid_input1 = self.data['train_q1_words_seqs'][valid_index]
             valid_input2 = self.data['train_q2_words_seqs'][valid_index]
             valid_y = self.data['labels'][valid_index]
 
-            # data augment
-            train_input1 = np.array(train_input_1 + train_input_2)
-            train_input2 = np.array(train_input_2 + train_input_1)
-            train_y = np.array(train_y + train_y)
+            # # data augment
+            # train_input1 = np.array(train_input_1 + train_input_2)
+            # train_input2 = np.array(train_input_2 + train_input_1)
+            # train_y = np.array(train_y + train_y)
 
             model = self.build_model(self.data)
 

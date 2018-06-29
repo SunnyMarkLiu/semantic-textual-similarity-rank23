@@ -126,6 +126,14 @@ class Configure(object):
         'optimizer': 'adam'
     }
 
+    esim_cfg = {
+        'rnn_units': 100,
+        'dense_units': [256, 64],
+        'dense_dropout': 0.5,
+        'activation': 'relu',
+        'optimizer': Adam(lr=0.0001)
+    }
+
     # my model
     multi_channel_match_cfg = {
         # 4个模型，每个模型的两个 sentence 求 diff， 拼接每个模型的 diff，转成矩阵，后面接 CNN
