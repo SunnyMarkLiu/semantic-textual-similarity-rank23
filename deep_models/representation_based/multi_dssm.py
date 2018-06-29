@@ -66,7 +66,6 @@ class DSSM(BaseModel):
         # model.summary()
         plot_model(model, to_file='../assets/DSSM.png', show_shapes=True, show_layer_names=True)
 
-
         return model
 
 
@@ -116,7 +115,7 @@ class CNN_DSSM(BaseModel):
         mul_diff = Lambda(lambda x: x[0] * x[1], output_shape=(merge_cnn_out_shape,))([merged_1, merged_2])
 
         # merge features
-        merged = concatenate([mse_diff, mul_diff])
+        merged = concatenate([merged_1, merged_2, mse_diff, mul_diff])
         merged = BatchNormalization()(merged)
 
         # The MLP that determines the outcome
@@ -178,7 +177,6 @@ class GRU_DSSM(BaseModel):
                       metrics=['binary_accuracy'])
         # model.summary()
         plot_model(model, to_file='../assets/GRU_DSSM.png', show_shapes=True, show_layer_names=True)
-
 
         return model
 

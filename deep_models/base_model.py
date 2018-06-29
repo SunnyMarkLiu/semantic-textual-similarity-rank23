@@ -11,14 +11,11 @@ import time
 import math
 import numpy as np
 import pandas as pd
-
+import warnings
+warnings.filterwarnings('ignore')
 sys.path.append("../")
 from abc import ABCMeta
 
-# 文本处理
-import warnings
-
-warnings.filterwarnings('ignore')
 from keras.callbacks import TensorBoard
 from sklearn.model_selection import StratifiedKFold
 from utils.keras_utils import ModelSave_EarlyStop_LRDecay

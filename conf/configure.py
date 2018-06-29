@@ -63,12 +63,12 @@ class Configure(object):
     # finetuned
     cnn_dssm_cfg = {
         'embed_dropout': 0.3,
-        '1d_cnn_filters_kernels' : [(128, 2), (128, 3), (128, 4), (128, 5), (128, 6)],
+        '1d_cnn_filters_kernels' : [(128, 2), (128, 3), (128, 4), (128, 5), (128, 6), (128, 7), (128, 8)],
         'padding'   : 'same',
-        'dense_units': [512, 256],
+        'dense_units': [1024, 256],
         'dense_dropout': 0.5,
         'activation': 'relu',
-        'optimizer': Adam(lr=0.001)
+        'optimizer': Adam(lr=0.0001)
     }
 
     # finetuned
@@ -116,6 +116,12 @@ class Configure(object):
 
         'dense_units': [256],
         'dense_dropout': 0.5,
+        'activation': 'relu',
+        'optimizer': 'adam'
+    }
+
+    siamese_lstm_cfg = {
+        'rnn_units': 400,
         'activation': 'relu',
         'optimizer': 'adam'
     }
