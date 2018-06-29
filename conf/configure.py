@@ -10,7 +10,7 @@ import sys
 
 module_path = os.path.abspath(os.path.join('..'))
 sys.path.append(module_path)
-
+from keras.optimizers import Adam
 
 class Configure(object):
     """ global configuration """
@@ -63,12 +63,12 @@ class Configure(object):
     # finetuned
     cnn_dssm_cfg = {
         'embed_dropout': 0.3,
-        '1d_cnn_filters_kernels' : [(256, 2), (256, 3), (128, 4), (64, 5), (32, 6)],
+        '1d_cnn_filters_kernels' : [(128, 2), (128, 3), (128, 4), (128, 5), (128, 6)],
         'padding'   : 'same',
         'dense_units': [512, 256],
         'dense_dropout': 0.5,
         'activation': 'relu',
-        'optimizer': 'adam'
+        'optimizer': Adam(lr=0.001)
     }
 
     # finetuned
@@ -129,24 +129,24 @@ class Configure(object):
         # model4（CNN-GRU）：diff 输出维度等于 rnn_units 300
         # 拼接之后，整体 diff 输出维度 225+400+300+300 = 1225 = 35 * 35，即矩阵的大小为 35x35，之后进行卷积
 
-        'simple_architecture': False,   # completed perform better
+        'simple_architecture': True,   # completed perform better
 
-        'mlp_dense_units': 200,
+        'mlp_dense_units': 100,
         'embed_dropout': 0.1,
-        'rnn_units': 300,
+        'rnn_units': 100,
 
-        '1d_cnn_filters_kernels': [(100, 2), (100, 3), (100, 4), (100, 5)],  # 20*20=400, 30*30=900，必须是平方数
+        '1d_cnn_filters_kernels': [(50, 2), (50, 3), (50, 4), (50, 5)],  # 20*20=400, 30*30=900，必须是平方数
         'padding': 'same',
 
-        '2d_cnn_filters_kernels': [(64, 3), (128, 3), (256, 3)],
+        '2d_cnn_filters_kernels': [(64, 3)],
         '2d_cnn_strides': 1,
         '2d_pool_size': 2,
 
-        'dense_units': [1024, 512, 256],
+        'dense_units': [512, 128],
         'dense_dropout': 0.5,
 
         'activation': 'relu',
-        'lr': 0.0005
+        'lr': 0.0001
     }
 
     def params_to_string(self):

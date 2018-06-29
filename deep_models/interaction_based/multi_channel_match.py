@@ -33,8 +33,6 @@ class MultiChannelMatch(BaseModel):
         m2_q2_input = Input(shape=(self.cfg.max_sequence_length,), dtype='int16', name='m2_q2_input')
         m3_q1_input = Input(shape=(self.cfg.max_sequence_length,), dtype='int16', name='m3_q1_input')
         m3_q2_input = Input(shape=(self.cfg.max_sequence_length,), dtype='int16', name='m3_q2_input')
-        m4_q1_input = Input(shape=(self.cfg.max_sequence_length,), dtype='int16', name='m4_q1_input')
-        m4_q2_input = Input(shape=(self.cfg.max_sequence_length,), dtype='int16', name='m4_q2_input')
 
         ########## model1: embed + maxpooling #########
         shared_m1_embed_layer = Embedding(data['nb_words'], self.cfg.embedding_dim, weights=[data['embedding_matrix']],
@@ -168,8 +166,7 @@ class MultiChannelMatch(BaseModel):
         preds = Dense(1, activation='sigmoid')(conv_out)
         model = Model(inputs=[m1_q1_input, m1_q2_input,
                               m2_q1_input, m2_q2_input,
-                              m3_q1_input, m3_q2_input,
-                              m4_q1_input, m4_q2_input],
+                              m3_q1_input, m3_q2_input],
                       outputs=preds)
 
         optimizer = optimizers.Adam(lr=self.cfg.multi_channel_match_cfg['lr'])

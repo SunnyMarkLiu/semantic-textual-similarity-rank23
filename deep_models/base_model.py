@@ -123,7 +123,6 @@ class BaseModel(object):
             valid_pred_1 = model.predict(valid_x_1, batch_size=predict_batch_size)[:, 0]
             valid_pred_2 = model.predict(valid_x_2, batch_size=predict_batch_size)[:, 0]
             valid_pred = (valid_pred_1 + valid_pred_2) / 2.0
-            print(valid_pred.shape)
 
             valid_logloss = early_stop.best
             print('valid_logloss:', valid_logloss)
