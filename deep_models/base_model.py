@@ -80,7 +80,9 @@ class BaseModel(object):
             ## training the model and predict
             ########################################
 
-            best_model_name = '{}_{}_kfold{}_batch_size{}.h5'.format(self.model_name, self.cfg.params_to_string(), kfold, batch_size)
+            best_model_name = '{}_{}_kfold{}_batch_size{}_time{}.h5'.format(
+                self.model_name, self.cfg.params_to_string(), kfold, batch_size, self.time_str
+            )
             best_model_path = best_model_dir + best_model_name
             early_stop = ModelSave_EarlyStop_LRDecay(model_path=best_model_path,
                                                      save_best_only=True, save_weights_only=True,

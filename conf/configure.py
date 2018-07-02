@@ -11,6 +11,7 @@ import sys
 module_path = os.path.abspath(os.path.join('..'))
 sys.path.append(module_path)
 from keras.optimizers import Adam
+from keras import regularizers
 
 class Configure(object):
     """ global configuration """
@@ -30,13 +31,13 @@ class Configure(object):
     # global params
     initial_lr          = 0.01  # 初始 lr
     lr_decay            = 1     # lr 衰减比例
-    max_sequence_length = 30    # 序列的最大长度
+    max_sequence_length = 39    # 序列的最大长度
     max_nb_words        = 20890 # 词汇表的最大词汇数
     embedding_dim       = 300   # 词向量的维度
     embed_trainable     = False  # 词向量是否可训练
     use_data_aug        = False  # 是否使用数据扩充
     aug_frac            = 1   # 数据扩充比例
-    random_state        = 42    # 随机数状态
+    random_state        = 0    # 随机数状态
     epochs              = 100   # 训练的最大 epoch，注意设置了 early stopping
 
     ########### models config ############
@@ -127,11 +128,11 @@ class Configure(object):
     }
 
     esim_cfg = {
-        'rnn_units': 100,
-        'dense_units': [256, 64],
+        'rnn_units': 300,
+        'dense_units': [300, 300],
         'dense_dropout': 0.5,
-        'activation': 'relu',
-        'optimizer': Adam(lr=0.0001)
+        'activation': 'elu',
+        'optimizer': Adam(lr=1e-3)
     }
 
     # my model

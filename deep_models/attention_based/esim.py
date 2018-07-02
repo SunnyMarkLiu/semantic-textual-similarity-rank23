@@ -11,7 +11,8 @@ sys.path.append("../")
 import warnings
 
 warnings.filterwarnings('ignore')
-
+from keras.models import Model
+from keras.initializers import Constant
 from keras.utils import plot_model
 from base_model import BaseModel
 from utils.keras_layers import *
@@ -20,17 +21,19 @@ from utils.keras_layers import *
 class Esim(BaseModel):
 
     def build_model(self, data):
-        embedding_layer = Embedding(data['nb_words'],
+        shared_embedding_layer = Embedding(data['nb_words'],
                                     self.cfg.embedding_dim,
                                     weights=[data['embedding_matrix']],
                                     input_length=self.cfg.max_sequence_length,
                                     trainable=self.cfg.embed_trainable)
+        shared_embed_bn_layer = BatchNormalization(axis=2)
+
         seq_1_input = Input(shape=(self.cfg.max_sequence_length,), dtype='int16')
         seq_2_input = Input(shape=(self.cfg.max_sequence_length,), dtype='int16')
 
         # Embedding
-        embed_seq_1 = embedding_layer(seq_1_input)
-        embed_seq_2 = embedding_layer(seq_2_input)
+        embed_seq_1 = shared_embed_bn_layer(shared_embedding_layer(seq_1_input))
+        embed_seq_2 = shared_embed_bn_layer(shared_embedding_layer(seq_2_input))
 
         # Encode
         shared_encode_layer = Bidirectional(CuDNNGRU(self.cfg.esim_cfg['rnn_units'], return_sequences=True))
@@ -55,11 +58,16 @@ class Esim(BaseModel):
         # Classifier
         merged = Concatenate()([q1_rep, q2_rep])
         dense = BatchNormalization()(merged)
+        print('MLP input:', dense)
 
         for dense_unit in self.cfg.esim_cfg['dense_units']:
-            dense = Dropout(self.cfg.esim_cfg['dense_dropout'])(dense)
-            dense = Dense(dense_unit, activation=self.cfg.match_pyramid_cfg['activation'])(dense)
+            dense = Dense(
+                units=dense_unit,
+                activation=self.cfg.esim_cfg['activation'],
+                bias_initializer=Constant(value=0.1)
+            )(dense)
             dense = BatchNormalization()(dense)
+            dense = Dropout(self.cfg.esim_cfg['dense_dropout'])(dense)
 
         preds = Dense(1, activation='sigmoid')(dense)
         model = Model(inputs=[seq_1_input, seq_2_input], outputs=preds)
