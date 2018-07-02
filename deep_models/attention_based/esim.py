@@ -64,7 +64,7 @@ class Esim(BaseModel):
             dense = Dense(
                 units=dense_unit,
                 activation=self.cfg.esim_cfg['activation'],
-                bias_initializer=Constant(value=0.1)
+                bias_initializer=Constant(value=0.01)
             )(dense)
             dense = BatchNormalization()(dense)
             dense = Dropout(self.cfg.esim_cfg['dense_dropout'])(dense)

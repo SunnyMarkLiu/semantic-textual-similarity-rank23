@@ -128,11 +128,26 @@ class Configure(object):
     }
 
     esim_cfg = {
-        'rnn_units': 300,
+        'rnn_units': 100,
         'dense_units': [300, 300],
         'dense_dropout': 0.5,
         'activation': 'elu',
-        'optimizer': Adam(lr=1e-3)
+        'optimizer': Adam(lr=1e-4)
+    }
+
+    decom_att_cfg= {
+        'projection_dim': 300,
+        'projection_hidden': 100,
+        'activation': 'elu',
+        'projection_dropout': 0.2,
+
+        'compare_dim': 500,
+        'compare_dropout': 0.2,
+
+        'dense_units': [512, 128],
+        'dense_dropout': 0.5,
+
+        'optimizer': 'adam'
     }
 
     # my model
