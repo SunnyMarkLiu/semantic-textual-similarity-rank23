@@ -46,7 +46,7 @@ class BaseModel(object):
         lrate = initial_lrate * math.pow(lr_decay, math.floor((1 + epoch) / epochs_drop))
         return lrate
 
-    def _run_out_of_fold(self, fold, batch_size, predict_batch_size, use_tensorbord):
+    def _run_out_of_fold(self, fold, batch_size, predict_batch_size, random_state, use_tensorbord):
         """ roof 方式训练模型 """
         best_model_dir = self.cfg.model_save_base_dir + self.model_name + '/'
         if not os.path.exists(best_model_dir):
@@ -57,7 +57,7 @@ class BaseModel(object):
         cv_logloss = []
         roof_flod = fold
 
-        kf = StratifiedKFold(n_splits=roof_flod, shuffle=True, random_state=42)
+        kf = StratifiedKFold(n_splits=roof_flod, shuffle=True, random_state=random_state)
         for kfold, (train_index, valid_index) in enumerate(kf.split(self.data['train_q1_words_seqs'], self.data['labels'])):
             print('\n============== perform fold {}, total folds {} =============='.format(kfold, roof_flod))
 
@@ -169,8 +169,8 @@ class BaseModel(object):
     def _simple_train_predict(self):
         pass
 
-    def train_and_predict(self, roof, fold, batch_size, predict_batch_size, use_tensorbord=False):
+    def train_and_predict(self, roof, fold, batch_size, predict_batch_size, random_state=42, use_tensorbord=False):
         if roof:
-            self._run_out_of_fold(fold, batch_size, predict_batch_size, use_tensorbord)
+            self._run_out_of_fold(fold, batch_size, predict_batch_size, random_state, use_tensorbord)
         else:
             self._simple_train_predict()

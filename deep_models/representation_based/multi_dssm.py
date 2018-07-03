@@ -6,6 +6,7 @@
 @time  : 2018/6/25 下午5:36
 """
 import warnings
+warnings.filterwarnings('ignore')
 import sys
 sys.path.append("../")
 from keras import backend as K
@@ -15,8 +16,6 @@ from keras.layers import concatenate, Dropout, BatchNormalization
 from keras.layers.embeddings import Embedding
 from keras.models import Model
 from keras.utils import plot_model
-
-warnings.filterwarnings('ignore')
 from base_model import BaseModel
 
 
@@ -28,16 +27,13 @@ class DSSM(BaseModel):
         """
         embedding_layer = Embedding(data['nb_words'],
                                     self.cfg.embedding_dim,
-                                    weights=[data['embedding_matrix']],
+                                    weights=[data['word_embedding_matrix']],
                                     input_length=self.cfg.max_sequence_length,
                                     trainable=self.cfg.embed_trainable)
         seq_1_input = Input(shape=(self.cfg.max_sequence_length,), dtype='int32')
         seq_2_input = Input(shape=(self.cfg.max_sequence_length,), dtype='int32')
         embed_seq_1 = embedding_layer(seq_1_input)
         embed_seq_2 = embedding_layer(seq_2_input)
-
-        embed_seq_1 = Dropout(self.cfg.dssm_cfg['embed_dropout'])(embed_seq_1)
-        embed_seq_2 = Dropout(self.cfg.dssm_cfg['embed_dropout'])(embed_seq_2)
 
         q1 = TimeDistributed(Dense(self.cfg.embedding_dim, activation='relu'))(embed_seq_1)
         q1 = Lambda(lambda x: K.max(x, axis=1), output_shape=(self.cfg.embedding_dim,))(q1)
@@ -77,7 +73,7 @@ class CNN_DSSM(BaseModel):
     def build_model(self, data):
         embedding_layer = Embedding(data['nb_words'],
                                     self.cfg.embedding_dim,
-                                    weights=[data['embedding_matrix']],
+                                    weights=[data['word_embedding_matrix']],
                                     input_length=self.cfg.max_sequence_length,
                                     trainable=self.cfg.embed_trainable)
         seq_1_input = Input(shape=(self.cfg.max_sequence_length,), dtype='int32')
@@ -140,7 +136,7 @@ class GRU_DSSM(BaseModel):
     def build_model(self, data):
         embedding_layer = Embedding(data['nb_words'],
                                     self.cfg.embedding_dim,
-                                    weights=[data['embedding_matrix']],
+                                    weights=[data['word_embedding_matrix']],
                                     input_length=self.cfg.max_sequence_length,
                                     trainable=self.cfg.embed_trainable)
         seq_1_input = Input(shape=(self.cfg.max_sequence_length,), dtype='int32')
@@ -195,7 +191,7 @@ class Merge_DSSM(BaseModel):
     def _mlp_model(self, data):
         embedding_layer = Embedding(data['nb_words'],
                                     self.cfg.embedding_dim,
-                                    weights=[data['embedding_matrix']],
+                                    weights=[data['word_embedding_matrix']],
                                     input_length=self.cfg.max_sequence_length,
                                     trainable=self.cfg.embed_trainable)
         seq_1_input = Input(shape=(self.cfg.max_sequence_length,), dtype='int32')
@@ -219,7 +215,7 @@ class Merge_DSSM(BaseModel):
     def _lstm_model(self, data):
         embedding_layer = Embedding(data['nb_words'],
                                     self.cfg.embedding_dim,
-                                    weights=[data['embedding_matrix']],
+                                    weights=[data['word_embedding_matrix']],
                                     input_length=self.cfg.max_sequence_length,
                                     trainable=self.cfg.embed_trainable)
         seq_1_input = Input(shape=(self.cfg.max_sequence_length,), dtype='int32')
@@ -249,7 +245,7 @@ class Merge_DSSM(BaseModel):
     def _cnn_model(self, data):
         embedding_layer = Embedding(data['nb_words'],
                                     self.cfg.embedding_dim,
-                                    weights=[data['embedding_matrix']],
+                                    weights=[data['word_embedding_matrix']],
                                     input_length=self.cfg.max_sequence_length,
                                     trainable=self.cfg.embed_trainable)
         seq_1_input = Input(shape=(self.cfg.max_sequence_length,), dtype='int32')

@@ -183,6 +183,22 @@ class Configure(object):
         'lr': 0.0001
     }
 
+    mine_multi_channel_cfg = {
+        'm1_rnn_units': 400,
+
+        'm2_1d_cnn_filters_kernels': [(50, 2), (50, 3), (50, 4), (50, 5)],
+        'm2_padding': 'same',
+
+        'm3_dense_dropout': 0.2,
+        'm3_num_layers': 2,
+        'm3_hidden_sizes': [200, 200],
+
+        'mlp_dense_units': [512, 128],
+        'mlp_dense_dropout': 0.5,
+        'activation': 'relu',
+        'optimizer': Adam(lr=1e-3)
+    }
+
     def params_to_string(self):
         param_str = 'max_seq_len{}-max_nb_words{}_embed_train{}_aug{}_augfrac{}_seed{}_lr_decay{}'.format(
             self.max_sequence_length,
