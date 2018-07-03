@@ -5,6 +5,7 @@
 @author: SunnyMarkLiu
 @time  : 2018/6/22 下午9:13
 """
+import os
 import gc
 import sys
 
@@ -16,8 +17,8 @@ sys.path.append("../")
 from keras.preprocessing.text import Tokenizer
 from keras.preprocessing.sequence import pad_sequences
 import warnings
-
 warnings.filterwarnings('ignore')
+import cPickle
 
 
 def data_augment():
@@ -27,22 +28,16 @@ def data_augment():
 
 
 def load_datas(word_embed_path, question_file, train_data_file, test_data_file,
-               max_nb_words, max_sequence_length, embedding_dim, use_data_aug,
-               aug_frac, random_state=42):
+               max_nb_words, max_sequence_length, embedding_dim,
+               char_embed_path, max_nb_chars, max_seq_chars_length):
 
-    ########################################
-    ## 将读取的词向量文本转化为字典
-    ## key为词，value为对应的 300 维的向量
-    ########################################
-    print('Indexing word vectors.')
-    word_embeddings_index = {}
-    with open(word_embed_path) as f:
-        for line in f:
-            values = line.split()
-            word = str(values[0])
-            coefs = np.asarray(values[1:], dtype='float32')
-            word_embeddings_index[word] = coefs
-    print('Found %d word vectors.' % len(word_embeddings_index))
+    data_file = 'max_nb_words{}_max_sequence_length{}_max_nb_chars{}_max_seq_chars_length{}.pkl'.format(
+        max_nb_words, max_sequence_length, max_nb_chars, max_seq_chars_length
+    )
+    if os.path.exists(data_file):
+        with open(data_file, "rb") as f:
+            data = cPickle.load(f)
+            return data
 
     print('load and process text dataset')
     questions = pd.read_csv(question_file)
@@ -64,14 +59,56 @@ def load_datas(word_embed_path, question_file, train_data_file, test_data_file,
     test = pd.merge(test, questions, left_on=['q2'], right_on=['qid'], how='left')
     test = test.rename(columns={'words': 'q2_words', 'chars': 'q2_chars'})
     test.drop(['q1', 'q2', 'qid'], axis=1, inplace=True)
-
+    labels = train['label'].values
     # 拼接 train 和 test，方便处理
     test['label'] = -1
     all_df = pd.concat([train, test])
 
-    ########################################
-    ## tokenize the text and then do padding the sentences
-    ########################################
+    print('max seq words:', max(questions['words'].map(lambda x: len(x.split(' ')))))
+    print('max seq chars:', max(questions['chars'].map(lambda x: len(x.split(' ')))))
+
+    print('====== process words ======')
+    nb_words, word_embedding_matrix, train_q1_words_seqs, train_q2_words_seqs, test_q1_words_seq, test_q2_words_seq = \
+        _process_words(word_embed_path, max_nb_words, questions, all_df, max_sequence_length, embedding_dim, train)
+
+    print('====== process chars ======')
+    nb_chars, char_embedding_matrix, train_q1_chars_seqs, train_q2_chars_seqs, test_q1_chars_seq, test_q2_chars_seq = \
+        _process_chars(char_embed_path, max_nb_chars, questions, all_df, max_seq_chars_length, embedding_dim, train)
+
+    data = {
+        'nb_words': nb_words,
+        'word_embedding_matrix': word_embedding_matrix,
+        'labels': labels,
+        'train_q1_words_seqs': train_q1_words_seqs,
+        'train_q2_words_seqs': train_q2_words_seqs,
+        'test_q1_words_seq': test_q1_words_seq,
+        'test_q2_words_seq': test_q2_words_seq,
+
+        'nb_chars': nb_chars,
+        'char_embedding_matrix': char_embedding_matrix,
+        'train_q1_chars_seqs': train_q1_chars_seqs,
+        'train_q2_chars_seqs': train_q2_chars_seqs,
+        'test_q1_chars_seq': test_q1_chars_seq,
+        'test_q2_chars_seq': test_q2_chars_seq,
+    }
+
+    with open(data_file, "wb") as f:
+        cPickle.dump(data, f, -1)
+
+    return data
+
+
+def _process_words(word_embed_path, max_nb_words, questions, all_df, max_sequence_length, embedding_dim, train):
+    print('Indexing word vectors.')
+    word_embeddings_index = {}
+    with open(word_embed_path) as f:
+        for line in f:
+            values = line.split()
+            word = str(values[0])
+            coefs = np.asarray(values[1:], dtype='float32')
+            word_embeddings_index[word] = coefs
+    print('Found %d word vectors.' % len(word_embeddings_index))
+
     tokenizer = Tokenizer(nb_words=max_nb_words)
     tokenizer.fit_on_texts(questions['words'])
     word_index = tokenizer.word_index
@@ -87,13 +124,11 @@ def load_datas(word_embed_path, question_file, train_data_file, test_data_file,
     train_q2_words_seqs = q2_words_seqs[:train.shape[0]]
     test_q1_words_seq = q1_words_seqs[train.shape[0]:]
     test_q2_words_seq = q2_words_seqs[train.shape[0]:]
-    labels = train['label'].values
 
     print('Shape of question1 train data tensor:', train_q1_words_seqs.shape)
     print('Shape of question2 train data tensor:', train_q2_words_seqs.shape)
     print('Shape of question1 test data tensor:', test_q1_words_seq.shape)
-    print('Shape of question1 test data tensor:', test_q2_words_seq.shape)
-    print('Shape of label tensor:', labels.shape)
+    print('Shape of question2 test data tensor:', test_q2_words_seq.shape)
     del q1_words_seqs
     del q2_words_seqs
     gc.collect()
@@ -102,7 +137,7 @@ def load_datas(word_embed_path, question_file, train_data_file, test_data_file,
     # prepare embedding matrix
     nb_words = min(max_nb_words, len(word_index))
 
-    embedding_matrix = np.zeros((nb_words, embedding_dim))
+    word_embedding_matrix = np.zeros((nb_words, embedding_dim))
     for word, i in word_index.items():
 
         if i >= nb_words:
@@ -111,10 +146,59 @@ def load_datas(word_embed_path, question_file, train_data_file, test_data_file,
         embedding_vector = word_embeddings_index.get(word)
         if embedding_vector is not None:
             # words not found in embedding index will be all-zeros.
-            embedding_matrix[i] = embedding_vector
-    print('Null word embeddings: %d' % np.sum(np.sum(embedding_matrix, axis=1) == 0))
+            word_embedding_matrix[i] = embedding_vector
+    print('Null word embeddings: %d' % np.sum(np.sum(word_embedding_matrix, axis=1) == 0))
+    return nb_words, word_embedding_matrix, train_q1_words_seqs, train_q2_words_seqs, test_q1_words_seq, test_q2_words_seq
 
-    data = {'nb_words': nb_words, 'embedding_matrix': embedding_matrix, 'labels': labels,
-            'train_q1_words_seqs': train_q1_words_seqs, 'train_q2_words_seqs': train_q2_words_seqs,
-            'test_q1_words_seq': test_q1_words_seq, 'test_q2_words_seq': test_q2_words_seq}
-    return data
+
+def _process_chars(char_embed_path, max_nb_chars, questions, all_df, max_seq_chars_length, embedding_dim, train):
+    char_embeddings_index = {}
+    with open(char_embed_path) as f:
+        for line in f:
+            values = line.split()
+            char = str(values[0])
+            coefs = np.asarray(values[1:], dtype='float32')
+            char_embeddings_index[char] = coefs
+    print('Found %d char vectors.' % len(char_embeddings_index))
+
+    tokenizer = Tokenizer(nb_words=max_nb_chars)
+    tokenizer.fit_on_texts(questions['chars'])
+    char_index = tokenizer.word_index
+    print('Found %s unique chars.' % len(char_index))
+    print('Tokenize the text and then do padding the sentences to {} chars'.format(max_seq_chars_length))
+    q1_chars_seqs = tokenizer.texts_to_sequences(all_df['q1_chars'])
+    q2_chars_seqs = tokenizer.texts_to_sequences(all_df['q2_chars'])
+
+    q1_chars_seqs = pad_sequences(q1_chars_seqs, maxlen=max_seq_chars_length)
+    q2_chars_seqs = pad_sequences(q2_chars_seqs, maxlen=max_seq_chars_length)
+
+    train_q1_chars_seqs = q1_chars_seqs[:train.shape[0]]
+    train_q2_chars_seqs = q2_chars_seqs[:train.shape[0]]
+    test_q1_chars_seq = q1_chars_seqs[train.shape[0]:]
+    test_q2_chars_seq = q2_chars_seqs[train.shape[0]:]
+
+    print('Shape of question1 train data tensor:', train_q1_chars_seqs.shape)
+    print('Shape of question2 train data tensor:', train_q2_chars_seqs.shape)
+    print('Shape of question1 test data tensor:', test_q1_chars_seq.shape)
+    print('Shape of question2 test data tensor:', test_q2_chars_seq.shape)
+    del q1_chars_seqs
+    del q2_chars_seqs
+    gc.collect()
+
+    print('Preparing embedding matrix.')
+    # prepare embedding matrix
+    nb_chars = min(max_nb_chars, len(char_index))
+
+    char_embedding_matrix = np.zeros((nb_chars, embedding_dim))
+    for char, i in char_index.items():
+
+        if i >= nb_chars:
+            continue
+        char = str(char).upper()
+        embedding_vector = char_embeddings_index.get(char)
+        if embedding_vector is not None:
+            # words not found in embedding index will be all-zeros.
+            char_embedding_matrix[i] = embedding_vector
+    print('Null char embeddings: %d' % np.sum(np.sum(char_embedding_matrix, axis=1) == 0))
+
+    return nb_chars, char_embedding_matrix, train_q1_chars_seqs, train_q2_chars_seqs, test_q1_chars_seq, test_q2_chars_seq

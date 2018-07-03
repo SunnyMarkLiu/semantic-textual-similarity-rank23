@@ -22,7 +22,7 @@ class Configure(object):
     question_file       = '/d_2t/lq/projects/semantic_similarity/input/question.csv'
 
     word_embed_path     = '/d_2t/lq/projects/semantic_similarity/input/word_embed.txt'
-    char_embed_file     = '/d_2t/lq/projects/semantic_similarity/input/char_embed..txt'
+    char_embed_file     = '/d_2t/lq/projects/semantic_similarity/input/char_embed.txt'
 
     # 最有模型保存路径
     model_save_base_dir = '/d_2t/lq/projects/semantic_similarity/deep_models/check_points/'
@@ -37,6 +37,10 @@ class Configure(object):
     embed_trainable     = False  # 词向量是否可训练
     use_data_aug        = False  # 是否使用数据扩充
     aug_frac            = 1   # 数据扩充比例
+
+    max_nb_chars        = 3048
+    max_seq_chars_length= 56
+
     random_state        = 0    # 随机数状态
     epochs              = 100   # 训练的最大 epoch，注意设置了 early stopping
 
@@ -147,7 +151,7 @@ class Configure(object):
         'dense_units': [512, 128],
         'dense_dropout': 0.5,
 
-        'optimizer': 'adam'
+        'optimizer': Adam(lr=1e-3)
     }
 
     # my model

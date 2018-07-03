@@ -42,8 +42,9 @@ def main():
         word_embed_path=cfg.word_embed_path, question_file=cfg.question_file,
         train_data_file=cfg.train_data_file, test_data_file=cfg.test_data_file,
         max_nb_words=cfg.max_nb_words, max_sequence_length=cfg.max_sequence_length,
-        embedding_dim=cfg.embedding_dim, use_data_aug=cfg.use_data_aug,
-        aug_frac=cfg.aug_frac, random_state=cfg.random_state
+        embedding_dim=cfg.embedding_dim,
+
+        char_embed_path=cfg.char_embed_file, max_nb_chars=cfg.max_nb_chars, max_seq_chars_length=cfg.max_seq_chars_length
     )
 
     # create model

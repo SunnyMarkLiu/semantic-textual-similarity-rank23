@@ -23,7 +23,7 @@ class DecomposableAttention(BaseModel):
     def build_model(self, data):
         shared_embedding_layer = Embedding(data['nb_words'],
                                            self.cfg.embedding_dim,
-                                           weights=[data['embedding_matrix']],
+                                           weights=[data['word_embedding_matrix']],
                                            input_length=self.cfg.max_sequence_length,
                                            trainable=self.cfg.embed_trainable)
         shared_embed_bn_layer = BatchNormalization(axis=2)
