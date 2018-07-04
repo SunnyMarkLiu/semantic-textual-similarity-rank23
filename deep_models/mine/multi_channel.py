@@ -64,11 +64,11 @@ class MultiChannelMatch(BaseModel):
             conv2 = conv_layer(m2_q2)
 
             # Attention
-            conv1_aligned, conv2aligned = soft_attention_alignment(conv1, conv2)
+            # conv1, conv2 = soft_attention_alignment(conv1, conv2)
 
-            glob1 = GlobalAveragePooling1D()(conv1_aligned)
+            glob1 = GlobalAveragePooling1D()(conv1)
             cnn_out1.append(glob1)
-            glob2 = GlobalAveragePooling1D()(conv2aligned)
+            glob2 = GlobalAveragePooling1D()(conv2)
             cnn_out2.append(glob2)
 
             merge_cnn_out_shape += filters
@@ -76,7 +76,7 @@ class MultiChannelMatch(BaseModel):
         m2_q1_rep = concatenate(cnn_out1)
         m2_q2_rep = concatenate(cnn_out2)
 
-        ########## model3 BiMPM #########
+        ########## model3 Esim #########
         m3_q1_input = Input(shape=(self.cfg.max_sequence_length,), dtype='int16', name='m3_q1_input')
         m3_q2_input = Input(shape=(self.cfg.max_sequence_length,), dtype='int16', name='m3_q2_input')
 
@@ -84,17 +84,38 @@ class MultiChannelMatch(BaseModel):
                                           weights=[data['word_embedding_matrix']],
                                           input_length=self.cfg.max_sequence_length, trainable=self.cfg.embed_trainable)
 
+        # Embedding
         m3_q1 = shared_m3_embed_layer(m3_q1_input)
         m3_q2 = shared_m3_embed_layer(m3_q2_input)
 
+        # Encode
+        shared_encode_layer = Bidirectional(CuDNNGRU(self.cfg.mine_multi_channel_cfg['m3_rnn_units'], return_sequences=True))
+        q1_encoded = shared_encode_layer(m3_q1)
+        q2_encoded = shared_encode_layer(m3_q2)
+
+        # Attention
+        q1_aligned, q2_aligned = soft_attention_alignment(q1_encoded, q2_encoded)
+
+        # Compose
+        q1_combined = Concatenate()([q1_encoded, q2_aligned, diff_features(q1_encoded, q2_aligned)])
+        q2_combined = Concatenate()([q2_encoded, q1_aligned, diff_features(q2_encoded, q1_aligned)])
+
+        compose = Bidirectional(CuDNNGRU(self.cfg.mine_multi_channel_cfg['m3_rnn_units'], return_sequences=True))
+        q1_compare = compose(q1_combined)
+        q2_compare = compose(q2_combined)
+
+        # Aggregate
+        m3_q1_rep = apply_multiple(q1_compare, [GlobalAvgPool1D(), GlobalMaxPool1D()])
+        m3_q2_rep = apply_multiple(q2_compare, [GlobalAvgPool1D(), GlobalMaxPool1D()])
 
         ################ clac difference over sentences of every models ################
         m1_diff     = diff_features(m1_q1_rep, m1_q2_rep)
         m1_att_diff = diff_features(m1_q1_aligned_rep, m1_q2_aligned_rep)
         m2_diff     = diff_features(m2_q1_rep, m2_q2_rep)
+        m3_diff     = diff_features(m3_q1_rep, m3_q2_rep)
 
         ################ MLP for prediction ################
-        dense = concatenate([m1_diff, m1_att_diff, m2_diff])
+        dense = concatenate([m1_diff, m1_att_diff, m2_diff, m3_diff])
         dense = BatchNormalization()(dense)
 
         print('mlp input:', dense)
@@ -105,7 +126,8 @@ class MultiChannelMatch(BaseModel):
 
         preds = Dense(1, activation='sigmoid')(dense)
         model = Model(inputs=[m1_q1_input, m1_q2_input,
-                              m2_q1_input, m2_q2_input],
+                              m2_q1_input, m2_q2_input,
+                              m3_q1_input, m3_q2_input],
                       outputs=preds)
 
         model.compile(

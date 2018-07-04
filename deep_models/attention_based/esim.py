@@ -44,8 +44,8 @@ class Esim(BaseModel):
         q1_aligned, q2_aligned = soft_attention_alignment(q1_encoded, q2_encoded)
 
         # Compose
-        q1_combined = Concatenate()([q1_encoded, q2_aligned, submult(q1_encoded, q2_aligned)])
-        q2_combined = Concatenate()([q2_encoded, q1_aligned, submult(q2_encoded, q1_aligned)])
+        q1_combined = Concatenate()([q1_encoded, q2_aligned, diff_features(q1_encoded, q2_aligned)])
+        q2_combined = Concatenate()([q2_encoded, q1_aligned, diff_features(q2_encoded, q1_aligned)])
 
         compose = Bidirectional(CuDNNGRU(self.cfg.esim_cfg['rnn_units'], return_sequences=True))
         q1_compare = compose(q1_combined)
