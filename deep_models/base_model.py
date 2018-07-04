@@ -8,10 +8,11 @@
 import os
 import sys
 import time
-import math
+import warnings
+
 import numpy as np
 import pandas as pd
-import warnings
+
 warnings.filterwarnings('ignore')
 sys.path.append("../")
 from abc import ABCMeta
@@ -35,16 +36,6 @@ class BaseModel(object):
     def build_model(self, data):
         """ 构建模型 """
         raise NotImplementedError
-
-    def _step_decay(self, epoch):
-        """ Drop-Based Learning Rate Schedule
-        LearningRate = InitialLearningRate * DropRate^floor(Epoch / EpochDrop)
-        """
-        initial_lrate = self.cfg.initial_lr
-        lr_decay = self.cfg.lr_decay
-        epochs_drop = self.lr_drop_epoch
-        lrate = initial_lrate * math.pow(lr_decay, math.floor((1 + epoch) / epochs_drop))
-        return lrate
 
     def _run_out_of_fold(self, fold, batch_size, predict_batch_size, random_state, use_tensorbord):
         """ roof 方式训练模型 """
