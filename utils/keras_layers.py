@@ -21,12 +21,13 @@ def substract(input_1, input_2):
     return out_
 
 
-def submult(input_1, input_2):
-    """Get multiplication and subtraction then concatenate results"""
-    mult = Multiply()([input_1, input_2])
+def diff_features(input_1, input_2):
     sub = substract(input_1, input_2)
-    out_ = Concatenate()([sub, mult])
-    return out_
+    mult = Multiply()([input_1, input_2])
+
+    features = Concatenate()([sub, mult])
+    features = BatchNormalization()(features)
+    return features
 
 
 def apply_multiple(input_, layers):

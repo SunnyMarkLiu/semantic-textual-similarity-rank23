@@ -61,11 +61,14 @@ class MultiChannelMatch(BaseModel):
                                 padding=self.cfg.mine_multi_channel_cfg['m2_padding'],
                                 activation=self.cfg.mine_multi_channel_cfg['activation'])
             conv1 = conv_layer(m2_q1)
-            glob1 = GlobalAveragePooling1D()(conv1)
-            cnn_out1.append(glob1)
-
             conv2 = conv_layer(m2_q2)
-            glob2 = GlobalAveragePooling1D()(conv2)
+
+            # Attention
+            conv1_aligned, conv2aligned = soft_attention_alignment(conv1, conv2)
+
+            glob1 = GlobalAveragePooling1D()(conv1_aligned)
+            cnn_out1.append(glob1)
+            glob2 = GlobalAveragePooling1D()(conv2aligned)
             cnn_out2.append(glob2)
 
             merge_cnn_out_shape += filters
@@ -73,22 +76,22 @@ class MultiChannelMatch(BaseModel):
         m2_q1_rep = concatenate(cnn_out1)
         m2_q2_rep = concatenate(cnn_out2)
 
-        ########## model3 DRMM #########
+        ########## model3 BiMPM #########
         m3_q1_input = Input(shape=(self.cfg.max_sequence_length,), dtype='int16', name='m3_q1_input')
         m3_q2_input = Input(shape=(self.cfg.max_sequence_length,), dtype='int16', name='m3_q2_input')
 
-        shared_m1_embed_layer = Embedding(data['nb_words'], self.cfg.embedding_dim,
+        shared_m3_embed_layer = Embedding(data['nb_words'], self.cfg.embedding_dim,
                                           weights=[data['word_embedding_matrix']],
                                           input_length=self.cfg.max_sequence_length, trainable=self.cfg.embed_trainable)
 
-        m3_q1 = shared_m1_embed_layer(m3_q1_input)
-        m3_q2 = shared_m1_embed_layer(m3_q2_input)
+        m3_q1 = shared_m3_embed_layer(m3_q1_input)
+        m3_q2 = shared_m3_embed_layer(m3_q2_input)
 
 
         ################ clac difference over sentences of every models ################
-        m1_diff = submult(m1_q1_rep, m1_q2_rep)
-        m1_att_diff = submult(m1_q1_aligned_rep, m1_q2_aligned_rep)
-        m2_diff = submult(m2_q1_rep, m2_q2_rep)
+        m1_diff     = diff_features(m1_q1_rep, m1_q2_rep)
+        m1_att_diff = diff_features(m1_q1_aligned_rep, m1_q2_aligned_rep)
+        m2_diff     = diff_features(m2_q1_rep, m2_q2_rep)
 
         ################ MLP for prediction ################
         dense = concatenate([m1_diff, m1_att_diff, m2_diff])
