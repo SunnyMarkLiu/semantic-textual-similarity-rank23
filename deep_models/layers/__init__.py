@@ -9,3 +9,4 @@ from .match import Match, match
 from .match import ManhattanDistance
 from .multi_perspective_match import MultiPerspectiveMatch
 from .bilstm import BiCuDNNLSTM
+from .decaying_dropout import DecayingDropout
