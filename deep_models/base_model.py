@@ -68,14 +68,11 @@ class BaseModel(object):
 
             model = self.build_model(self.data)
 
-            # save initial weights
-            initial_model_name = '{}_{}_kfold{}_batch_size{}_initial_weights.h5'.format(
-                self.model_name, self.cfg.params_to_string(), kfold, batch_size
-            )
+            # save initial weights, 手动保存的一个初始化 weights
+            initial_model_name = '{}_initial_weights.h5'.format(self.model_name)
             initial_model_path = best_model_dir + initial_model_name
-            if not os.path.exists(initial_model_path):
-                model.save_weights(initial_model_path, overwrite=True)
-            else:
+            if os.path.exists(initial_model_path):
+                print('load initial weights')
                 model.load_weights(filepath=initial_model_path)
 
             ########################################
