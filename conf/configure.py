@@ -11,7 +11,7 @@ import sys
 module_path = os.path.abspath(os.path.join('..'))
 sys.path.append(module_path)
 from keras.optimizers import Adam
-from keras import regularizers
+
 
 class Configure(object):
     """ global configuration """
@@ -195,13 +195,13 @@ class Configure(object):
         'optimizer': Adam(lr=1e-3)
     }
 
+    engineered_feature_size = 100
+
     def params_to_string(self):
-        param_str = 'max_seq_len{}-max_nb_words{}_embed_train{}_aug{}_augfrac{}_seed{}_lr_decay{}'.format(
+        param_str = 'max_seq_len{}-max_nb_words{}_embed_train{}_seed{}_lr_decay{}'.format(
             self.max_sequence_length,
             self.max_nb_words,
             self.embed_trainable,
-            self.use_data_aug,
-            self.aug_frac,
             self.random_state,
             self.lr_decay,
         )

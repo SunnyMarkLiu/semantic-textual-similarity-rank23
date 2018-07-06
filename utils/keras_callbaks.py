@@ -128,7 +128,7 @@ class ModelSave_EarlyStop_LRDecay(Callback):
         patience: spectfic the count that `monitor` didn't improve, then update learning reate
     """
 
-    def __init__(self, model_path, lr_decay=0.9, monitor='val_loss', verbose=0,
+    def __init__(self, model_path, lr_decay=0.9, monitor='val_loss', train_monitor='loss', verbose=0,
                  save_best_only=True, save_weights_only=False,
                  patience_continus_no_improvet_epoch=2,
                  mode='auto', period=1, patience=3):
@@ -143,6 +143,9 @@ class ModelSave_EarlyStop_LRDecay(Callback):
         self.epochs_since_last_save = 0
         self.patience = patience
         self.patience_index = 0
+
+        self.train_best = None
+        self.train_monitor = train_monitor
 
         # continues updating lr twice no improvement，stop training
         self.patience_continus_no_improvet_epoch = patience_continus_no_improvet_epoch
@@ -185,6 +188,9 @@ class ModelSave_EarlyStop_LRDecay(Callback):
                             print('\nEpoch %05d: %s improved from %0.5f to %0.5f,' %
                                   (epoch, self.monitor, self.best, current))
                         self.best = current
+
+                        self.train_best = logs.get(self.train_monitor)
+
                         self.best_epoch = epoch
                         # clear patience_index
                         self.patience_index = 0

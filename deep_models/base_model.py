@@ -47,6 +47,7 @@ class BaseModel(object):
         pred_test_full = 0
         cv_logloss = []
         roof_flod = fold
+        best_train_logloss = []
 
         kf = StratifiedKFold(n_splits=roof_flod, shuffle=True, random_state=random_state)
         for kfold, (train_index, valid_index) in enumerate(kf.split(self.data['train_q1_words_seqs'], self.data['labels'])):
@@ -77,8 +78,9 @@ class BaseModel(object):
             best_model_path = best_model_dir + best_model_name
             early_stop = ModelSave_EarlyStop_LRDecay(model_path=best_model_path,
                                                      save_best_only=True, save_weights_only=True,
-                                                     monitor='val_loss', lr_decay=1,
-                                                     patience=5, verbose=0, mode='min')
+                                                     monitor='val_loss', mode='min',
+                                                     train_monitor='loss',
+                                                     lr_decay=1, patience=5, verbose=0)
             # lr_scheduler = LearningRateScheduler(self.step_decay)
             callbacks = [early_stop]
             if use_tensorbord:
@@ -114,8 +116,9 @@ class BaseModel(object):
             valid_pred_2 = model.predict(valid_x_2, batch_size=predict_batch_size)[:, 0]
             valid_pred = (valid_pred_1 + valid_pred_2) / 2.0
 
-            valid_logloss = early_stop.best
-            print('valid_logloss:', valid_logloss)
+            train_logloss, valid_logloss = early_stop.train_best, early_stop.best
+            print('train_logloss: {}, valid_logloss: {}'.format(train_logloss, valid_logloss))
+            best_train_logloss.append(train_logloss)
             cv_logloss.append(valid_logloss)
 
             text_x_1 = []
@@ -134,15 +137,15 @@ class BaseModel(object):
 
         print('cv result:')
         print(cv_logloss)
-        mean_cv_logloss = np.mean(cv_logloss)
-        print('Mean cv logloss:', mean_cv_logloss)
+        mean_valid_logloss = np.mean(cv_logloss)
+        print('mean train logloss: {}, valid logloss: {}'.format(np.mean(best_train_logloss), mean_valid_logloss))
 
         print("saving predictions for ensemble")
         test_df = pd.DataFrame({'y_pre': pred_train_full})
         test_df.to_csv('{}train_{}_{}_cv{}_{}.csv'.format(
                 self.cfg.save_ensemble_dir, self.model_name,
                 self.cfg.params_to_string() + '_fold{}'.format(fold) + '_batch_size{}'.format(batch_size),
-                mean_cv_logloss, self.time_str
+                mean_valid_logloss, self.time_str
             ),
             index=False
         )
@@ -152,7 +155,7 @@ class BaseModel(object):
         test_df.to_csv('{}test_{}_{}_cv{}_{}.csv'.format(
                 self.cfg.save_ensemble_dir, self.model_name,
                 self.cfg.params_to_string() + '_fold{}'.format(fold) + '_batch_size{}'.format(batch_size),
-                mean_cv_logloss, self.time_str
+                mean_valid_logloss, self.time_str
             ),
             index=False
         )

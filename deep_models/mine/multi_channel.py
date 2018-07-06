@@ -13,6 +13,7 @@ from keras.models import Model, Sequential
 from keras.utils import plot_model
 from base_model import BaseModel
 from utils.keras_layers import *
+from keras.initializers import TruncatedNormal, Constant
 
 
 class MultiChannelMatch(BaseModel):
@@ -76,20 +77,13 @@ class MultiChannelMatch(BaseModel):
         m2_q1_rep = concatenate(cnn_out1)
         m2_q2_rep = concatenate(cnn_out2)
 
-        ########## model3 Esim #########
-        m3_q1_input = Input(shape=(self.cfg.max_sequence_length,), dtype='int16', name='m3_q1_input')
-        m3_q2_input = Input(shape=(self.cfg.max_sequence_length,), dtype='int16', name='m3_q2_input')
-
-        shared_m3_embed_layer = Embedding(data['nb_words'], self.cfg.embedding_dim,
-                                          weights=[data['word_embedding_matrix']],
-                                          input_length=self.cfg.max_sequence_length, trainable=self.cfg.embed_trainable)
-
+        ########## engineered features #########
+        engineered_features = Input(shape=(self.cfg.engineered_feature_size,), dtype='float', name='engineered_features')
 
         ################ clac difference over sentences of every models ################
         m1_diff     = diff_features(m1_q1_rep, m1_q2_rep)
         m1_att_diff = diff_features(m1_q1_aligned_rep, m1_q2_aligned_rep)
         m2_diff     = diff_features(m2_q1_rep, m2_q2_rep)
-        # m3_diff     = diff_features(m3_q1_rep, m3_q2_rep)
 
         ################ MLP for prediction ################
         dense = concatenate([m1_diff, m1_att_diff, m2_diff])
@@ -101,7 +95,7 @@ class MultiChannelMatch(BaseModel):
             dense = Dense(dense_unit, activation=self.cfg.mine_multi_channel_cfg['activation'])(dense)
             dense = BatchNormalization()(dense)
 
-        preds = Dense(1, activation='sigmoid')(dense)
+        preds = Dense(units=1, activation='sigmoid')(dense)
         model = Model(inputs=[m1_q1_input, m1_q2_input,
                               m2_q1_input, m2_q2_input],
                       outputs=preds)

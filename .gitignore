@@ -100,3 +100,4 @@ result/ensemble/*.csv
 papers_I_should_read.md
 deep_models/run_gpu0_models.sh
 deep_models/run_gpu1_models.sh
+deep_models/run_gpu2_models.sh
