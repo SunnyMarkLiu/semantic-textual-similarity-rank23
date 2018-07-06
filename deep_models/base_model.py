@@ -68,6 +68,16 @@ class BaseModel(object):
 
             model = self.build_model(self.data)
 
+            # save initial weights
+            initial_model_name = '{}_{}_kfold{}_batch_size{}_initial_weights.h5'.format(
+                self.model_name, self.cfg.params_to_string(), kfold, batch_size
+            )
+            initial_model_path = best_model_dir + initial_model_name
+            if not os.path.exists(initial_model_path):
+                model.save_weights(initial_model_path, overwrite=True)
+            else:
+                model.load_weights(filepath=initial_model_path)
+
             ########################################
             ## training the model and predict
             ########################################
