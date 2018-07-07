@@ -18,8 +18,11 @@ sys.path.append("../")
 from abc import ABCMeta
 
 from keras.callbacks import TensorBoard
+from sklearn.metrics import log_loss
 from sklearn.model_selection import StratifiedKFold
-from utils.keras_callbaks import ModelSave_EarlyStop_LRDecay
+from callbacks import ModelCheckPointByBatch_EarlyStop_LRScheduler
+from callbacks.lr_schedule import divide_decay
+
 
 class BaseModel(object):
     """ Abstract base model for all text matching model """
@@ -75,28 +78,6 @@ class BaseModel(object):
                 print('load initial weights')
                 model.load_weights(filepath=initial_model_path)
 
-            ########################################
-            ## training the model and predict
-            ########################################
-
-            best_model_name = '{}_{}_kfold{}_batch_size{}_time{}.h5'.format(
-                self.model_name, self.cfg.params_to_string(), kfold, batch_size, self.time_str
-            )
-            best_model_path = best_model_dir + best_model_name
-            early_stop = ModelSave_EarlyStop_LRDecay(model_path=best_model_path,
-                                                     save_best_only=True, save_weights_only=True,
-                                                     monitor='val_loss', mode='min',
-                                                     train_monitor='loss',
-                                                     lr_decay=1, patience=5, verbose=0)
-            # lr_scheduler = LearningRateScheduler(self.step_decay)
-            callbacks = [early_stop]
-            if use_tensorbord:
-                tensorbord = TensorBoard(log_dir='./los/{}/'.format(self.model_name))
-                callbacks.append(tensorbord)
-
-            # if os.path.exists(best_model_path):
-            #     model.load_weights(best_model_path)
-
             input_channels = len(model.input_shape) / 2
             train_x = []
             for i in range(input_channels):
@@ -107,6 +88,38 @@ class BaseModel(object):
             for i in range(input_channels):
                 valid_x_1.extend([valid_input1, valid_input2])
                 valid_x_2.extend([valid_input2, valid_input1])
+
+            ########################################
+            ## training the model and predict
+            ########################################
+
+            best_model_name = '{}_{}_kfold{}_batch_size{}_time{}.h5'.format(
+                self.model_name, self.cfg.params_to_string(), kfold, batch_size, self.time_str
+            )
+            best_model_path = best_model_dir + best_model_name
+
+            callback = ModelCheckPointByBatch_EarlyStop_LRScheduler(
+                best_model_path=best_model_path,
+                monitor='val_loss', train_monitor='loss',
+                save_best_only=True, save_weights_only=True,
+                validation_data=(valid_x_1, valid_y),
+                metric_fun=log_loss,
+                valid_batch_size=predict_batch_size,
+                valid_batch_interval=int(len(train_y) / batch_size / 3),
+
+                stop_patience_epoch=3, stop_min_delta=0.,
+                lr_schedule_patience_epoch=2, schedule_fun=divide_decay,
+
+                mode='min', verbose=0,
+            )
+
+            callbacks = [callback]
+            if use_tensorbord:
+                tensorbord = TensorBoard(log_dir='./los/{}/'.format(self.model_name))
+                callbacks.append(tensorbord)
+
+            # if os.path.exists(best_model_path):
+            #     model.load_weights(best_model_path)
 
             model.fit(x=train_x,
                       y=train_y,
@@ -123,7 +136,7 @@ class BaseModel(object):
             valid_pred_2 = model.predict(valid_x_2, batch_size=predict_batch_size)[:, 0]
             valid_pred = (valid_pred_1 + valid_pred_2) / 2.0
 
-            train_logloss, valid_logloss = early_stop.train_best, early_stop.best
+            train_logloss, valid_logloss = callback.train_best, callback.best
             print('train_logloss: {}, valid_logloss: {}'.format(train_logloss, valid_logloss))
             best_train_logloss.append(train_logloss)
             cv_logloss.append(valid_logloss)
