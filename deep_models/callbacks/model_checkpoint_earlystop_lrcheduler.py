@@ -117,7 +117,7 @@ class ModelCheckPointByBatch_EarlyStop_LRScheduler(Callback):
                     else:
                         # batch did not improve, load previous best weights and training again
                         self.model.load_weights(self.best_model_path)
-                        
+
                         # if self.verbose > 0:
                         #     print('batch %05d: %s did not improve' % (batch + 1, self.monitor))
 
