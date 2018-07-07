@@ -26,17 +26,20 @@ class Esim(BaseModel):
                                     weights=[data['word_embedding_matrix']],
                                     input_length=self.cfg.max_sequence_length,
                                     trainable=self.cfg.embed_trainable)
-        shared_embed_bn_layer = BatchNormalization(axis=2)
+        shared_embed_dropout_layer = SpatialDropout1D(self.cfg.esim_cfg['embed_dropout'])
 
         seq_1_input = Input(shape=(self.cfg.max_sequence_length,), dtype='int16')
         seq_2_input = Input(shape=(self.cfg.max_sequence_length,), dtype='int16')
 
         # Embedding
-        embed_seq_1 = shared_embed_bn_layer(shared_embedding_layer(seq_1_input))
-        embed_seq_2 = shared_embed_bn_layer(shared_embedding_layer(seq_2_input))
+        embed_seq_1 = shared_embed_dropout_layer(shared_embedding_layer(seq_1_input))
+        embed_seq_2 = shared_embed_dropout_layer(shared_embedding_layer(seq_2_input))
 
         # Encode
-        shared_encode_layer = Bidirectional(CuDNNGRU(self.cfg.esim_cfg['rnn_units'], return_sequences=True))
+        shared_encode_layer = Bidirectional(GRU(units=self.cfg.esim_cfg['rnn_units'],
+                                                dropout=0.2,
+                                                recurrent_dropout=0.2,
+                                                return_sequences=True), merge_mode='concat')
         q1_encoded = shared_encode_layer(embed_seq_1)
         q2_encoded = shared_encode_layer(embed_seq_2)
 
@@ -44,12 +47,22 @@ class Esim(BaseModel):
         q1_aligned, q2_aligned = soft_attention_alignment(q1_encoded, q2_encoded)
 
         # Compose
-        q1_combined = Concatenate()([q1_encoded, q2_aligned, diff_features(q1_encoded, q2_aligned)])
-        q2_combined = Concatenate()([q2_encoded, q1_aligned, diff_features(q2_encoded, q1_aligned)])
+        q1_combined = Concatenate()([q1_encoded, q1_aligned, diff_features(q1_encoded, q1_aligned)])
+        q2_combined = Concatenate()([q2_encoded, q2_aligned, diff_features(q2_encoded, q2_aligned)])
 
-        compose = Bidirectional(CuDNNGRU(self.cfg.esim_cfg['rnn_units'], return_sequences=True))
-        q1_compare = compose(q1_combined)
-        q2_compare = compose(q2_combined)
+        compose_layer = Bidirectional(GRU(units=self.cfg.esim_cfg['rnn_units'],
+                                          dropout=0.2,
+                                          recurrent_dropout=0.2,
+                                          return_sequences=True))
+        reduction_layer = TimeDistributed(Dense(units=self.cfg.esim_cfg['rnn_units'],
+                                                kernel_initializer='he_normal',
+                                                activation='relu'))
+        q1_compare = Dropout(self.cfg.esim_cfg['dense_dropout'])(
+            reduction_layer(compose_layer(q1_combined))
+        )
+        q2_compare = Dropout(self.cfg.esim_cfg['dense_dropout'])(
+            reduction_layer(compose_layer(q2_combined))
+        )
 
         # Aggregate
         q1_rep = apply_multiple(q1_compare, [GlobalAvgPool1D(), GlobalMaxPool1D()])

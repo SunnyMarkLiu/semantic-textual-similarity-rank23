@@ -132,7 +132,8 @@ class Configure(object):
     }
 
     esim_cfg = {
-        'rnn_units': 100,
+        'embed_dropout': 0.2,
+        'rnn_units': 300,
         'dense_units': [300, 300],
         'dense_dropout': 0.5,
         'activation': 'elu',
