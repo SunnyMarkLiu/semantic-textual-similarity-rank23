@@ -203,11 +203,14 @@ class BaseModel(object):
                                                     random_state=2018,
                                                     test_size=0.1)
 
-        model_checkpoint = ModelCheckpoint(best_model_path, save_best_only=True, save_weights_only=True)
-        early_stopping = EarlyStopping(monitor='val_loss', patience=3)
+        callback = ModelSave_EarlyStop_LRDecay(model_path=best_model_path,
+                                               save_best_only=True, save_weights_only=True,
+                                               monitor='val_loss', mode='min',
+                                               train_monitor='loss',
+                                               lr_decay=1, patience=3, verbose=0)
 
         model.fit([x_train1, x_train2], y_train, batch_size=predict_batch_size, epochs=self.cfg.epochs,
-                  validation_data=([x_valid1, x_valid2], y_valid), callbacks=[model_checkpoint, early_stopping])
+                  validation_data=([x_valid1, x_valid2], y_valid), callbacks=[callback])
         model.load_weights(filepath=best_model_path)
         # predict valid
         valid_pred_1 = model.predict([x_valid1, x_valid2], batch_size=predict_batch_size)[:, 0]

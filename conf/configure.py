@@ -202,7 +202,7 @@ class Configure(object):
         'mlp_dense_units': [512, 128],
         'mlp_dense_dropout': 0.5,
         'activation': 'relu',
-        'optimizer': Adam(lr=1e-3)
+        'optimizer': Adam(lr=1e-2, clipvalue=10.0)
     }
 
     def params_to_string(self):
