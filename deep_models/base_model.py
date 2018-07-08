@@ -32,11 +32,12 @@ class BaseModel(object):
     """ Abstract base model for all text matching model """
     __metaclass__ = ABCMeta
 
-    def __init__(self, data, cfg, lr_drop_epoch, model_name):
+    def __init__(self, data, cfg, lr_drop_epoch, model_name, engineer_feature_count=0):
         self.data = data
         self.cfg = cfg
         self.lr_drop_epoch = lr_drop_epoch
         self.model_name = model_name
+        self.engineer_feature_count = engineer_feature_count
         self.time_str = time.strftime('%m_%d_%H_%M', time.localtime(time.time()))
 
     @NotImplementedError
@@ -62,10 +63,12 @@ class BaseModel(object):
 
             train_input1 = self.data['train_q1_words_seqs'][train_index]
             train_input2 = self.data['train_q2_words_seqs'][train_index]
+            train_features = self.data['train_features'][train_index]
             train_y = self.data['labels'][train_index]
 
             valid_input1 = self.data['train_q1_words_seqs'][valid_index]
             valid_input2 = self.data['train_q2_words_seqs'][valid_index]
+            valid_features = self.data['train_features'][valid_index]
             valid_y = self.data['labels'][valid_index]
 
             # # data augment
@@ -85,16 +88,10 @@ class BaseModel(object):
             else:
                 model.save_weights(initial_model_path, overwrite=True)
 
-            input_channels = len(model.input_shape) / 2
-            train_x = []
-            for i in range(input_channels):
-                train_x.extend([train_input1, train_input2])
+            train_x = [train_input1, train_input2, train_features]
 
-            valid_x_1 = []
-            valid_x_2 = []
-            for i in range(input_channels):
-                valid_x_1.extend([valid_input1, valid_input2])
-                valid_x_2.extend([valid_input2, valid_input1])
+            valid_x_1 = [valid_input1, valid_input2, valid_features]
+            valid_x_2 = [valid_input2, valid_input1, valid_features]
 
             ########################################
             ## training the model and predict
@@ -121,7 +118,7 @@ class BaseModel(object):
                 valid_batch_interval=int(len(train_y) / batch_size / 2),
                 # valid_batch_interval=int(len(train_y) / batch_size),
 
-                stop_patience_epoch=3, stop_min_delta=0.,
+                stop_patience_epoch=3, stop_min_delta=0.0001,
                 lr_schedule_patience_epoch=2, schedule_fun=divide_decay,
 
                 mode='min', verbose=0,
@@ -155,11 +152,8 @@ class BaseModel(object):
             best_train_logloss.append(train_logloss)
             cv_logloss.append(valid_logloss)
 
-            text_x_1 = []
-            text_x_2 = []
-            for i in range(input_channels):
-                text_x_1.extend([self.data['test_q1_words_seq'], self.data['test_q2_words_seq']])
-                text_x_2.extend([self.data['test_q2_words_seq'], self.data['test_q1_words_seq']])
+            text_x_1 = [self.data['test_q1_words_seq'], self.data['test_q2_words_seq'], self.data['test_features']]
+            text_x_2 = [self.data['test_q2_words_seq'], self.data['test_q1_words_seq'], self.data['test_features']]
 
             test_pred_1 = model.predict(text_x_1, batch_size=predict_batch_size)[:, 0]
             test_pred_2 = model.predict(text_x_2, batch_size=predict_batch_size)[:, 0]

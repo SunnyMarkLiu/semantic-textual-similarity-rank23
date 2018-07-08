@@ -22,11 +22,18 @@ class Configure(object):
     question_file       = '/d_2t/lq/projects/semantic_similarity/input/question.csv'
 
     word_embed_path     = '/d_2t/lq/projects/semantic_similarity/input/word_embed.txt'
-    char_embed_file     = '/d_2t/lq/projects/semantic_similarity/input/char_embed.txt'
+    char_embed_path     = '/d_2t/lq/projects/semantic_similarity/input/char_embed.txt'
 
     # 最有模型保存路径
     model_save_base_dir = '/d_2t/lq/projects/semantic_similarity/deep_models/check_points/'
     save_ensemble_dir   = '/d_2t/lq/projects/semantic_similarity/result/ensemble/'
+
+    features_path = '/d_2t/lq/projects/semantic_similarity/input/features/'
+    # 待 merge 的特征（特征名：merge_on 的特征）
+    features = {
+        'basic_features' : {'on': 'id', 'how': 'left'},
+        'basic_features2': {'on': 'id', 'how': 'left'}
+    }
 
     # global params
     initial_lr          = 0.01  # 初始 lr
@@ -152,7 +159,7 @@ class Configure(object):
         'dense_units': [512, 128],
         'dense_dropout': 0.5,
 
-        'optimizer': Adam(lr=1e-3)
+        'optimizer': Adam(lr=1e-3, clipvalue=10.0)
     }
 
     # my model
@@ -196,8 +203,6 @@ class Configure(object):
         'activation': 'relu',
         'optimizer': Adam(lr=1e-3)
     }
-
-    engineered_feature_size = 100
 
     def params_to_string(self):
         param_str = 'max_seq_len{}-max_nb_words{}_embed_train{}_seed{}_lr_decay{}'.format(

@@ -5,8 +5,8 @@
 @author: SunnyMarkLiu
 @time  : 2018/6/22 下午9:13
 """
-import os
 import gc
+import os
 import sys
 
 import numpy as np
@@ -17,8 +17,11 @@ sys.path.append("../")
 from keras.preprocessing.text import Tokenizer
 from keras.preprocessing.sequence import pad_sequences
 import warnings
+
 warnings.filterwarnings('ignore')
 import cPickle
+from conf.configure import Configure
+import data_utils
 
 
 def data_augment():
@@ -27,16 +30,51 @@ def data_augment():
     """
 
 
+def load_features():
+    # 待预测订单的数据 （原始训练集和测试集）
+    train = pd.read_csv(Configure.train_data_file, encoding='utf8')
+    test = pd.read_csv(Configure.test_data_file, encoding='utf8')
+    train['id'] = np.arange(train.shape[0])
+    test['id'] = np.arange(test.shape[0])
+
+    # 加载特征， 并合并
+    features_merged_dict = Configure.features
+    for feature_name in Configure.features:
+        print 'merge features:', feature_name
+        train_feature, test_feature = data_utils.load_features(feature_name)
+        if 'label' in train_feature.columns:
+            del train_feature['label']
+
+        train = pd.merge(train, train_feature,
+                         on=features_merged_dict[feature_name]['on'],
+                         how=features_merged_dict[feature_name]['how'])
+        test = pd.merge(test, test_feature,
+                        on=features_merged_dict[feature_name]['on'],
+                        how=features_merged_dict[feature_name]['how'])
+
+    train.fillna(0, inplace=True)
+    test.fillna(0, inplace=True)
+
+    train.drop(['id', 'q1', 'q2', 'q1_words', 'q1_chars', 'q2_words', 'q2_chars', 'label'], axis=1, inplace=True)
+    test.drop(['id', 'q1', 'q2', 'q1_words', 'q1_chars', 'q2_words', 'q2_chars',], axis=1, inplace=True)
+
+    return train, test
+
+
 def load_datas(word_embed_path, question_file, train_data_file, test_data_file,
                max_nb_words, max_sequence_length, embedding_dim,
                char_embed_path, max_nb_chars, max_seq_chars_length):
-
     data_file = 'max_nb_words{}_max_sequence_length{}_max_nb_chars{}_max_seq_chars_length{}.pkl'.format(
         max_nb_words, max_sequence_length, max_nb_chars, max_seq_chars_length
     )
     if os.path.exists(data_file):
         with open(data_file, "rb") as f:
             data = cPickle.load(f)
+            train_features, test_features = load_features()
+
+            data['train_features'] = train_features.values
+            data['test_features'] = test_features.values
+
             return data
 
     print('load and process text dataset')

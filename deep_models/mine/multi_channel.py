@@ -13,6 +13,7 @@ from keras.models import Model, Sequential
 from keras.utils import plot_model
 from base_model import BaseModel
 from utils.keras_layers import *
+from layers import common
 
 
 class MultiChannelMatch(BaseModel):
@@ -20,8 +21,8 @@ class MultiChannelMatch(BaseModel):
     def build_model(self, data):
 
         ########## model1: bi-lstm encode + attention soft align #########
-        m1_q1_input = Input(shape=(self.cfg.max_sequence_length,), dtype='int16', name='m1_q1_input')
-        m1_q2_input = Input(shape=(self.cfg.max_sequence_length,), dtype='int16', name='m1_q2_input')
+        q1_input = Input(shape=(self.cfg.max_sequence_length,), dtype='int16', name='m1_q1_input')
+        q2_input = Input(shape=(self.cfg.max_sequence_length,), dtype='int16', name='m1_q2_input')
 
         lstms_model = Sequential()
         lstms_model.add(Embedding(data['nb_words'], self.cfg.embedding_dim, weights=[data['word_embedding_matrix']],
@@ -30,8 +31,8 @@ class MultiChannelMatch(BaseModel):
         lstms_model.add(Bidirectional(CuDNNGRU(self.cfg.mine_multi_channel_cfg['m1_rnn_units'], return_sequences=True)))
         lstms_model.add(Bidirectional(CuDNNGRU(self.cfg.mine_multi_channel_cfg['m1_rnn_units'], return_sequences=True)))
 
-        m1_q1 = lstms_model(m1_q1_input)
-        m1_q2 = lstms_model(m1_q2_input)
+        m1_q1 = lstms_model(q1_input)
+        m1_q2 = lstms_model(q2_input)
 
         # Attention
         m1_q1_aligned, m1_q2_aligned = soft_attention_alignment(m1_q1, m1_q2)
@@ -44,13 +45,10 @@ class MultiChannelMatch(BaseModel):
         m1_q2_aligned_rep = apply_multiple(m1_q2_aligned, [GlobalAvgPool1D(), GlobalMaxPool1D()])
 
         ########## model2 1D-CNN #########
-        m2_q1_input = Input(shape=(self.cfg.max_sequence_length,), dtype='int16', name='m2_q1_input')
-        m2_q2_input = Input(shape=(self.cfg.max_sequence_length,), dtype='int16', name='m2_q2_input')
-
         shared_m2_embed_layer = Embedding(data['nb_words'], self.cfg.embedding_dim, weights=[data['word_embedding_matrix']],
                                           input_length=self.cfg.max_sequence_length, trainable=self.cfg.embed_trainable)
-        m2_q1 = shared_m2_embed_layer(m2_q1_input)
-        m2_q2 = shared_m2_embed_layer(m2_q2_input)
+        m2_q1 = shared_m2_embed_layer(q1_input)
+        m2_q2 = shared_m2_embed_layer(q2_input)
 
         # Run through CONV + GAP layers
         cnn_out1 = []
@@ -62,6 +60,16 @@ class MultiChannelMatch(BaseModel):
                                 activation=self.cfg.mine_multi_channel_cfg['activation'])
             conv1 = conv_layer(m2_q1)
             conv2 = conv_layer(m2_q2)
+
+            # conv1, conv2 = common.gated_liner_units(m2_q1, m2_q2, filters=filters, kernel_size=kernel_size,
+            #                                         padding=self.cfg.mine_multi_channel_cfg['m2_padding'],
+            #                                         activation=self.cfg.mine_multi_channel_cfg['activation'])
+            # conv1, conv2 = common.gated_liner_units(conv1, conv2, filters=filters, kernel_size=kernel_size,
+            #                                         padding=self.cfg.mine_multi_channel_cfg['m2_padding'],
+            #                                         activation=self.cfg.mine_multi_channel_cfg['activation'])
+            # conv1, conv2 = common.gated_liner_units(conv1, conv2, filters=filters, kernel_size=kernel_size,
+            #                                         padding=self.cfg.mine_multi_channel_cfg['m2_padding'],
+            #                                         activation=self.cfg.mine_multi_channel_cfg['activation'])
 
             # Attention
             # conv1, conv2 = soft_attention_alignment(conv1, conv2)
@@ -77,19 +85,20 @@ class MultiChannelMatch(BaseModel):
         m2_q2_rep = concatenate(cnn_out2)
 
         ########## engineered features #########
-        engineered_features = Input(shape=(self.cfg.engineered_feature_size,), dtype='float', name='engineered_features')
+        features_input = Input(shape=(self.engineer_feature_count,), dtype='float', name='engineered_features')
 
         ################ clac difference over sentences of every models ################
         m1_diff     = diff_features(m1_q1_rep, m1_q2_rep)
         m1_att_diff = diff_features(m1_q1_aligned_rep, m1_q2_aligned_rep)
         m2_diff     = diff_features(m2_q1_rep, m2_q2_rep)
 
-        dense = concatenate([m1_diff, m1_att_diff, m2_diff])
+        dense = concatenate([m1_diff, m1_att_diff, m2_diff, features_input])
         dense = BatchNormalization()(dense)
 
         print('model1 features:', m1_diff.shape.as_list()[1])
         print('model1-att features:', m1_att_diff.shape.as_list()[1])
         print('model2 features:', m2_diff.shape.as_list()[1])
+        print('handon features:', features_input.shape.as_list()[1])
         print('total feature shape:', dense.shape.as_list()[1])
 
         ################ MLP for prediction ################
@@ -99,8 +108,7 @@ class MultiChannelMatch(BaseModel):
             dense = BatchNormalization()(dense)
 
         preds = Dense(units=1, activation='sigmoid')(dense)
-        model = Model(inputs=[m1_q1_input, m1_q2_input,
-                              m2_q1_input, m2_q2_input],
+        model = Model(inputs=[q1_input, q2_input, features_input],
                       outputs=preds)
 
         model.compile(

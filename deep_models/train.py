@@ -45,7 +45,7 @@ def main():
         max_nb_words=cfg.max_nb_words, max_sequence_length=cfg.max_sequence_length,
         embedding_dim=cfg.embedding_dim,
 
-        char_embed_path=cfg.char_embed_file, max_nb_chars=cfg.max_nb_chars, max_seq_chars_length=cfg.max_seq_chars_length
+        char_embed_path=cfg.char_embed_path, max_nb_chars=cfg.max_nb_chars, max_seq_chars_length=cfg.max_seq_chars_length
     )
 
     # create model
@@ -56,7 +56,8 @@ def main():
     _module = importlib.import_module(module_name)
     cls = _module.__dict__.get(cls_name)
 
-    model = cls(data=data, cfg=cfg, lr_drop_epoch=FLAGS.lr_drop_epoch, model_name=cls_name)
+    model = cls(data=data, cfg=cfg, lr_drop_epoch=FLAGS.lr_drop_epoch, model_name=cls_name,
+                engineer_feature_count=data['train_features'].shape[1])
     print('===> train and predict')
     model.train_and_predict(roof=True, fold=FLAGS.fold, batch_size=FLAGS.batch_size,
                             predict_batch_size=FLAGS.predict_batch_size,
