@@ -16,12 +16,16 @@ import pandas as pd
 warnings.filterwarnings('ignore')
 sys.path.append("../")
 from abc import ABCMeta
-
+import tensorflow as tf
+from keras.models import Model
+from keras.layers import Input, Lambda, merge
+from keras import backend as K
 from keras.callbacks import TensorBoard
 from sklearn.metrics import log_loss
 from sklearn.model_selection import StratifiedKFold
 from callbacks import ModelCheckPointByBatch_EarlyStop_LRScheduler
 from callbacks.lr_schedule import divide_decay
+from utils.keras_callbaks import ModelSave_EarlyStop_LRDecay
 
 
 class BaseModel(object):
@@ -70,6 +74,7 @@ class BaseModel(object):
             # train_y = np.array(train_y + train_y)
 
             model = self.build_model(self.data)
+            # model = self.to_multi_gpu(model, n_gpus=2)
 
             # save initial weights, 手动保存的一个初始化 weights
             initial_model_name = '{}_initial_weights.h5'.format(self.model_name)
@@ -77,6 +82,8 @@ class BaseModel(object):
             if os.path.exists(initial_model_path):
                 print('load initial weights')
                 model.load_weights(filepath=initial_model_path)
+            else:
+                model.save_weights(initial_model_path, overwrite=True)
 
             input_channels = len(model.input_shape) / 2
             train_x = []
@@ -98,6 +105,12 @@ class BaseModel(object):
             )
             best_model_path = best_model_dir + best_model_name
 
+            # callback = ModelSave_EarlyStop_LRDecay(model_path=best_model_path,
+            #                                          save_best_only=True, save_weights_only=True,
+            #                                          monitor='val_loss', mode='min',
+            #                                          train_monitor='loss',
+            #                                          lr_decay=1, patience=5, verbose=0)
+
             callback = ModelCheckPointByBatch_EarlyStop_LRScheduler(
                 best_model_path=best_model_path,
                 monitor='val_loss', train_monitor='loss',
@@ -105,7 +118,8 @@ class BaseModel(object):
                 validation_data=(valid_x_1, valid_y),
                 metric_fun=log_loss,
                 valid_batch_size=predict_batch_size,
-                valid_batch_interval=int(len(train_y) / batch_size / 3),
+                valid_batch_interval=int(len(train_y) / batch_size / 2),
+                # valid_batch_interval=int(len(train_y) / batch_size),
 
                 stop_patience_epoch=3, stop_min_delta=0.,
                 lr_schedule_patience_epoch=2, schedule_fun=divide_decay,
@@ -188,3 +202,34 @@ class BaseModel(object):
             self._run_out_of_fold(fold, batch_size, predict_batch_size, random_state, use_tensorbord)
         else:
             self._simple_train_predict()
+
+    def slice_batch(self, x, n_gpus, part):
+        sh = K.shape(x)
+
+        L = sh[0] / n_gpus
+
+        if part == n_gpus - 1:
+            return x[part * L:]
+
+        return x[part * L:(part + 1) * L]
+
+    def to_multi_gpu(self, model, n_gpus=2):
+
+        with tf.device('/cpu:0'):
+
+            x = Input(model.input_shape[1:], name=model.input_names[0])
+
+        towers = []
+
+        merged = None
+        for g in range(n_gpus):
+            with tf.device('/gpu:' + str(g)):
+                slice_g = Lambda(self.slice_batch, lambda shape: shape,
+                                 arguments={'n_gpus': n_gpus, 'part': g})(x)
+
+                towers.append(model(slice_g))
+
+            with tf.device('/cpu:0'):
+                merged = merge(towers, mode='concat', concat_axis=0)
+
+        return Model(input=[x], output=merged)

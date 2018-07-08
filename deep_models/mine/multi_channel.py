@@ -13,13 +13,12 @@ from keras.models import Model, Sequential
 from keras.utils import plot_model
 from base_model import BaseModel
 from utils.keras_layers import *
-from keras.initializers import TruncatedNormal, Constant
 
 
 class MultiChannelMatch(BaseModel):
 
     def build_model(self, data):
-        # Input
+
         ########## model1: bi-lstm encode + attention soft align #########
         m1_q1_input = Input(shape=(self.cfg.max_sequence_length,), dtype='int16', name='m1_q1_input')
         m1_q2_input = Input(shape=(self.cfg.max_sequence_length,), dtype='int16', name='m1_q2_input')
@@ -85,11 +84,15 @@ class MultiChannelMatch(BaseModel):
         m1_att_diff = diff_features(m1_q1_aligned_rep, m1_q2_aligned_rep)
         m2_diff     = diff_features(m2_q1_rep, m2_q2_rep)
 
-        ################ MLP for prediction ################
         dense = concatenate([m1_diff, m1_att_diff, m2_diff])
         dense = BatchNormalization()(dense)
 
-        print('mlp input:', dense)
+        print('model1 features:', m1_diff.shape.as_list()[1])
+        print('model1-att features:', m1_att_diff.shape.as_list()[1])
+        print('model2 features:', m2_diff.shape.as_list()[1])
+        print('total feature shape:', dense.shape.as_list()[1])
+
+        ################ MLP for prediction ################
         for dense_unit in self.cfg.mine_multi_channel_cfg['mlp_dense_units']:
             dense = Dropout(self.cfg.mine_multi_channel_cfg['mlp_dense_dropout'])(dense)
             dense = Dense(dense_unit, activation=self.cfg.mine_multi_channel_cfg['activation'])(dense)

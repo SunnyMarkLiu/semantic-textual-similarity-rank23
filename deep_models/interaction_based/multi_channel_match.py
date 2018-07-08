@@ -12,7 +12,7 @@ sys.path.append("../")
 import math
 from keras import backend as K
 from keras.layers import Input, TimeDistributed, Dense, Lambda, Conv1D, Conv2D, GlobalAveragePooling1D, MaxPooling2D
-from keras.layers import Dropout, BatchNormalization, Reshape, Flatten, concatenate, CuDNNGRU
+from keras.layers import Dropout, BatchNormalization, Reshape, Flatten, concatenate, CuDNNGRU, SpatialDropout1D
 from keras.layers.embeddings import Embedding
 from keras.models import Model
 from keras import optimizers
@@ -37,7 +37,7 @@ class MultiChannelMatch(BaseModel):
         ########## model1: embed + maxpooling #########
         shared_m1_embed_layer = Embedding(data['nb_words'], self.cfg.embedding_dim, weights=[data['embedding_matrix']],
                                           input_length=self.cfg.max_sequence_length, trainable=self.cfg.embed_trainable)
-        shared_m1_embed_dropout_layer = Dropout(self.cfg.multi_channel_match_cfg['embed_dropout'])
+        shared_m1_embed_dropout_layer = SpatialDropout1D(self.cfg.multi_channel_match_cfg['embed_dropout'])
         shared_m1_timedistributed_layer  = TimeDistributed(Dense(self.cfg.multi_channel_match_cfg['mlp_dense_units'], activation='relu'))
         shared_m1_lambda_maxpooling_layer = Lambda(lambda x: K.max(x, axis=1), output_shape=(self.cfg.multi_channel_match_cfg['mlp_dense_units'],))
 

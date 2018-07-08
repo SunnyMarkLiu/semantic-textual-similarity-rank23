@@ -186,6 +186,7 @@ class Configure(object):
 
     mine_multi_channel_cfg = {
         'm1_rnn_units': 300,
+        'm1_dropout': 0.2,
 
         'm2_1d_cnn_filters_kernels': [(100, 2), (100, 3), (100, 4)],
         'm2_padding': 'same',
