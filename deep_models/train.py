@@ -56,10 +56,9 @@ def main():
     _module = importlib.import_module(module_name)
     cls = _module.__dict__.get(cls_name)
 
-    model = cls(data=data, cfg=cfg, lr_drop_epoch=FLAGS.lr_drop_epoch, model_name=cls_name,
-                engineer_feature_count=data['train_features'].shape[1])
+    model = cls(data=data, cfg=cfg, lr_drop_epoch=FLAGS.lr_drop_epoch, model_name=cls_name)
     print('===> train and predict')
-    model.train_and_predict(roof=True, fold=FLAGS.fold, batch_size=FLAGS.batch_size,
+    model.train_and_predict(roof=False, fold=FLAGS.fold, batch_size=FLAGS.batch_size,
                             predict_batch_size=FLAGS.predict_batch_size,
                             random_state=FLAGS.random_state)
     print('done')

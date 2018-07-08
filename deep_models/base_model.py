@@ -22,10 +22,11 @@ from keras.layers import Input, Lambda, merge
 from keras import backend as K
 from keras.callbacks import TensorBoard
 from sklearn.metrics import log_loss
-from sklearn.model_selection import StratifiedKFold
 from callbacks import ModelCheckPointByBatch_EarlyStop_LRScheduler
 from callbacks.lr_schedule import divide_decay
 from utils.keras_callbaks import ModelSave_EarlyStop_LRDecay
+from sklearn.model_selection import StratifiedKFold, train_test_split
+from keras.callbacks import EarlyStopping, ModelCheckpoint
 
 
 class BaseModel(object):
@@ -58,23 +59,19 @@ class BaseModel(object):
         best_train_logloss = []
 
         kf = StratifiedKFold(n_splits=roof_flod, shuffle=True, random_state=random_state)
-        for kfold, (train_index, valid_index) in enumerate(kf.split(self.data['train_q1_words_seqs'], self.data['labels'])):
+        for kfold, (train_index, valid_index) in enumerate(
+                kf.split(self.data['train_q1_words_seqs'], self.data['labels'])):
             print('\n============== perform fold {}, total folds {} =============='.format(kfold, roof_flod))
 
             train_input1 = self.data['train_q1_words_seqs'][train_index]
             train_input2 = self.data['train_q2_words_seqs'][train_index]
-            train_features = self.data['train_features'][train_index]
+            # train_features = self.data['train_features'][train_index]
             train_y = self.data['labels'][train_index]
 
             valid_input1 = self.data['train_q1_words_seqs'][valid_index]
             valid_input2 = self.data['train_q2_words_seqs'][valid_index]
-            valid_features = self.data['train_features'][valid_index]
+            # valid_features = self.data['train_features'][valid_index]
             valid_y = self.data['labels'][valid_index]
-
-            # # data augment
-            # train_input1 = np.array(train_input_1 + train_input_2)
-            # train_input2 = np.array(train_input_2 + train_input_1)
-            # train_y = np.array(train_y + train_y)
 
             model = self.build_model(self.data)
             # model = self.to_multi_gpu(model, n_gpus=2)
@@ -88,10 +85,10 @@ class BaseModel(object):
             else:
                 model.save_weights(initial_model_path, overwrite=True)
 
-            train_x = [train_input1, train_input2, train_features]
+            train_x = [train_input1, train_input2]
 
-            valid_x_1 = [valid_input1, valid_input2, valid_features]
-            valid_x_2 = [valid_input2, valid_input1, valid_features]
+            valid_x_1 = [valid_input1, valid_input2]
+            valid_x_2 = [valid_input2, valid_input1]
 
             ########################################
             ## training the model and predict
@@ -102,27 +99,27 @@ class BaseModel(object):
             )
             best_model_path = best_model_dir + best_model_name
 
-            # callback = ModelSave_EarlyStop_LRDecay(model_path=best_model_path,
-            #                                          save_best_only=True, save_weights_only=True,
-            #                                          monitor='val_loss', mode='min',
-            #                                          train_monitor='loss',
-            #                                          lr_decay=1, patience=5, verbose=0)
+            callback = ModelSave_EarlyStop_LRDecay(model_path=best_model_path,
+                                                   save_best_only=True, save_weights_only=True,
+                                                   monitor='val_loss', mode='min',
+                                                   train_monitor='loss',
+                                                   lr_decay=1, patience=5, verbose=0)
 
-            callback = ModelCheckPointByBatch_EarlyStop_LRScheduler(
-                best_model_path=best_model_path,
-                monitor='val_loss', train_monitor='loss',
-                save_best_only=True, save_weights_only=True,
-                validation_data=(valid_x_1, valid_y),
-                metric_fun=log_loss,
-                valid_batch_size=predict_batch_size,
-                valid_batch_interval=int(len(train_y) / batch_size / 2),
-                # valid_batch_interval=int(len(train_y) / batch_size),
-
-                stop_patience_epoch=3, stop_min_delta=0.0001,
-                lr_schedule_patience_epoch=2, schedule_fun=divide_decay,
-
-                mode='min', verbose=0,
-            )
+            # callback = ModelCheckPointByBatch_EarlyStop_LRScheduler(
+            #     best_model_path=best_model_path,
+            #     monitor='val_loss', train_monitor='loss',
+            #     save_best_only=True, save_weights_only=True,
+            #     validation_data=(valid_x_1, valid_y),
+            #     metric_fun=log_loss,
+            #     valid_batch_size=predict_batch_size,
+            #     valid_batch_interval=int(len(train_y) / batch_size / 2),
+            #     # valid_batch_interval=int(len(train_y) / batch_size),
+            #
+            #     stop_patience_epoch=3, stop_min_delta=0.0001,
+            #     lr_schedule_patience_epoch=2, schedule_fun=divide_decay,
+            #
+            #     mode='min', verbose=0,
+            # )
 
             callbacks = [callback]
             if use_tensorbord:
@@ -152,8 +149,8 @@ class BaseModel(object):
             best_train_logloss.append(train_logloss)
             cv_logloss.append(valid_logloss)
 
-            text_x_1 = [self.data['test_q1_words_seq'], self.data['test_q2_words_seq'], self.data['test_features']]
-            text_x_2 = [self.data['test_q2_words_seq'], self.data['test_q1_words_seq'], self.data['test_features']]
+            text_x_1 = [self.data['test_q1_words_seq'], self.data['test_q2_words_seq']]
+            text_x_2 = [self.data['test_q2_words_seq'], self.data['test_q1_words_seq']]
 
             test_pred_1 = model.predict(text_x_1, batch_size=predict_batch_size)[:, 0]
             test_pred_2 = model.predict(text_x_2, batch_size=predict_batch_size)[:, 0]
@@ -188,16 +185,56 @@ class BaseModel(object):
             index=False
         )
 
-    def _simple_train_predict(self):
-        pass
+    def _simple_train_predict(self, predict_batch_size):
+        best_model_dir = self.cfg.model_save_base_dir + self.model_name + '/'
+        if not os.path.exists(best_model_dir):
+            os.makedirs(best_model_dir)
+
+        best_model_name = '{}_time{}.h5'.format(
+            self.model_name, self.time_str
+        )
+        best_model_path = best_model_dir + best_model_name
+
+        model = self.build_model(self.data)
+        x_train1, x_valid1, y_train, y_valid = train_test_split(self.data['train_q1_words_seqs'], self.data['labels'],
+                                                                random_state=2018,
+                                                                test_size=0.1)
+        x_train2, x_valid2, _, _ = train_test_split(self.data['train_q2_words_seqs'], self.data['labels'],
+                                                    random_state=2018,
+                                                    test_size=0.1)
+
+        model_checkpoint = ModelCheckpoint(best_model_path, save_best_only=True, save_weights_only=True)
+        early_stopping = EarlyStopping(monitor='val_loss', patience=3)
+
+        model.fit([x_train1, x_train2], y_train, batch_size=predict_batch_size, epochs=self.cfg.epochs,
+                  validation_data=([x_valid1, x_valid2], y_valid), callbacks=[model_checkpoint, early_stopping])
+        model.load_weights(filepath=best_model_path)
+        # predict valid
+        valid_pred_1 = model.predict([x_valid1, x_valid2], batch_size=predict_batch_size)[:, 0]
+        valid_pred_2 = model.predict([x_valid2, x_valid1], batch_size=predict_batch_size)[:, 0]
+        valid_pred = (valid_pred_1 + valid_pred_2) / 2.0
+        print('valid logloss: {}'.format(log_loss(y_valid, valid_pred)))
+        text_x_1 = [self.data['test_q1_words_seq'], self.data['test_q2_words_seq']]
+        text_x_2 = [self.data['test_q2_words_seq'], self.data['test_q1_words_seq']]
+
+        test_pred_1 = model.predict(text_x_1, batch_size=predict_batch_size)[:, 0]
+        test_pred_2 = model.predict(text_x_2, batch_size=predict_batch_size)[:, 0]
+        test_pred = (test_pred_1 + test_pred_2) / 2.0
+
+        test_df = pd.DataFrame({'y_pre': test_pred})
+        test_df.to_csv('{}{}_{}.csv'.format(
+                self.cfg.single_result_dir, self.model_name, self.time_str
+            ),
+            index=False
+        )
 
     def train_and_predict(self, roof, fold, batch_size, predict_batch_size, random_state=42, use_tensorbord=False):
         if roof:
             self._run_out_of_fold(fold, batch_size, predict_batch_size, random_state, use_tensorbord)
         else:
-            self._simple_train_predict()
+            self._simple_train_predict(predict_batch_size)
 
-    def slice_batch(self, x, n_gpus, part):
+    def _slice_batch(self, x, n_gpus, part):
         sh = K.shape(x)
 
         L = sh[0] / n_gpus
@@ -207,10 +244,9 @@ class BaseModel(object):
 
         return x[part * L:(part + 1) * L]
 
-    def to_multi_gpu(self, model, n_gpus=2):
+    def _to_multi_gpu(self, model, n_gpus=2):
 
         with tf.device('/cpu:0'):
-
             x = Input(model.input_shape[1:], name=model.input_names[0])
 
         towers = []
@@ -218,7 +254,7 @@ class BaseModel(object):
         merged = None
         for g in range(n_gpus):
             with tf.device('/gpu:' + str(g)):
-                slice_g = Lambda(self.slice_batch, lambda shape: shape,
+                slice_g = Lambda(self._slice_batch, lambda shape: shape,
                                  arguments={'n_gpus': n_gpus, 'part': g})(x)
 
                 towers.append(model(slice_g))

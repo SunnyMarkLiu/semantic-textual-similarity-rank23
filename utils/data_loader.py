@@ -70,10 +70,10 @@ def load_datas(word_embed_path, question_file, train_data_file, test_data_file,
     if os.path.exists(data_file):
         with open(data_file, "rb") as f:
             data = cPickle.load(f)
-            train_features, test_features = load_features()
-
-            data['train_features'] = train_features.values
-            data['test_features'] = test_features.values
+            # train_features, test_features = load_features()
+            #
+            # data['train_features'] = train_features.values
+            # data['test_features'] = test_features.values
 
             return data
 

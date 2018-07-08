@@ -26,6 +26,7 @@ class Configure(object):
 
     # 最有模型保存路径
     model_save_base_dir = '/d_2t/lq/projects/semantic_similarity/deep_models/check_points/'
+    single_result_dir   =  '/d_2t/lq/projects/semantic_similarity/result/'
     save_ensemble_dir   = '/d_2t/lq/projects/semantic_similarity/result/ensemble/'
 
     features_path = '/d_2t/lq/projects/semantic_similarity/input/features/'
@@ -192,7 +193,7 @@ class Configure(object):
     }
 
     mine_multi_channel_cfg = {
-        'm1_rnn_units': 300,
+        'm1_rnn_units': 192,
         'm1_dropout': 0.2,
 
         'm2_1d_cnn_filters_kernels': [(100, 2), (100, 3), (100, 4)],
