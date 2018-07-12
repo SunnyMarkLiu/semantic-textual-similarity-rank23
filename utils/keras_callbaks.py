@@ -149,7 +149,7 @@ class ModelSave_EarlyStop_LRDecay(Callback):
 
         # continues updating lr twice no improvement，stop training
         self.patience_continus_no_improvet_epoch = patience_continus_no_improvet_epoch
-        self.continus_no_improvet_epoch = 0
+        self.wait = 0
 
         self.best_epoch = 0
 
@@ -200,7 +200,7 @@ class ModelSave_EarlyStop_LRDecay(Callback):
                             self.model.save(model_path, overwrite=True)
 
                         # clear flag
-                        self.continus_no_improvet_epoch = 0
+                        self.wait = 0
 
                     else:
                         # update learning rate
@@ -218,9 +218,9 @@ class ModelSave_EarlyStop_LRDecay(Callback):
                                 # clear patience_index
                                 self.patience_index = 0
 
-                            self.continus_no_improvet_epoch += 1
+                            self.wait += 1
 
-                    if self.continus_no_improvet_epoch > self.patience_continus_no_improvet_epoch:
+                    if self.wait > self.patience_continus_no_improvet_epoch:
                         print('\nStop training... \nbest %s : %0.5f, epoch: %d, model path: %s' %
                               (self.monitor, self.best, self.best_epoch, self.model_path))
                         self.model.stop_training = True

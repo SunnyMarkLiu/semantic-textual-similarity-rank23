@@ -24,10 +24,13 @@ from conf.configure import Configure
 import data_utils
 
 
-def data_augment():
+def load_pseudo_label_traindatas():
     """
-    扩增训练集
+    伪标签数据
     """
+    test_df = pd.read_csv(Configure.pseudo_label_test)
+    test_df['label'] = test_df['y_pre'].map(lambda x: int(x > 0.5))
+    return test_df
 
 
 def load_features():
@@ -63,17 +66,22 @@ def load_features():
 
 def load_datas(word_embed_path, question_file, train_data_file, test_data_file,
                max_nb_words, max_sequence_length, embedding_dim,
-               char_embed_path, max_nb_chars, max_seq_chars_length):
+               char_embed_path, max_nb_chars, max_seq_chars_length,
+               use_pseudo_label=False):
     data_file = 'max_nb_words{}_max_sequence_length{}_max_nb_chars{}_max_seq_chars_length{}.pkl'.format(
         max_nb_words, max_sequence_length, max_nb_chars, max_seq_chars_length
     )
     if os.path.exists(data_file):
         with open(data_file, "rb") as f:
             data = cPickle.load(f)
-            # train_features, test_features = load_features()
-            #
-            # data['train_features'] = train_features.values
-            # data['test_features'] = test_features.values
+
+            train_features, test_features = load_features()
+
+            data['train_features'] = train_features.values
+            data['test_features'] = test_features.values
+            if use_pseudo_label:
+                test_pred_labels = load_pseudo_label_traindatas()['label']
+                data['test_pred_labels'] = test_pred_labels
 
             return data
 

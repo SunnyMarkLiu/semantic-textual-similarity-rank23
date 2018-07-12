@@ -48,7 +48,7 @@ class Match(Layer):
                 '%s != %s. ' % (self.shape1[2], self.shape2[2]) +
                 'Layer shapes: %s, %s' % (self.shape1, self.shape2))
 
-    def call(self, inputs):
+    def call(self, inputs, **kwargs):
         x1 = inputs[0]
         x2 = inputs[1]
         output = None

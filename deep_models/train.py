@@ -28,7 +28,7 @@ flags.DEFINE_integer('fold', 5, "run out of fold")
 flags.DEFINE_integer('batch_size', 64, "training batch size")
 flags.DEFINE_integer('predict_batch_size', 64, "predict batch size")
 flags.DEFINE_float('lr_drop_epoch', 5.0, "every x epoch then drop learning rate")
-flags.DEFINE_integer('random_state', 1000, "random_state")
+flags.DEFINE_integer('random_state', 42, "random_state")
 flags.DEFINE_bool('use_tensorbord', False, "use tensorbord to check model")
 FLAGS = flags.FLAGS
 
@@ -45,7 +45,10 @@ def main():
         max_nb_words=cfg.max_nb_words, max_sequence_length=cfg.max_sequence_length,
         embedding_dim=cfg.embedding_dim,
 
-        char_embed_path=cfg.char_embed_path, max_nb_chars=cfg.max_nb_chars, max_seq_chars_length=cfg.max_seq_chars_length
+        char_embed_path=cfg.char_embed_path, max_nb_chars=cfg.max_nb_chars,
+        max_seq_chars_length=cfg.max_seq_chars_length,
+
+        use_pseudo_label=True
     )
 
     # create model
@@ -56,11 +59,12 @@ def main():
     _module = importlib.import_module(module_name)
     cls = _module.__dict__.get(cls_name)
 
-    model = cls(data=data, cfg=cfg, lr_drop_epoch=FLAGS.lr_drop_epoch, model_name=cls_name)
+    model = cls(data=data, cfg=cfg, lr_drop_epoch=FLAGS.lr_drop_epoch, model_name=cls_name,
+                engineer_feature_count=data['train_features'].shape[1])
     print('===> train and predict')
-    model.train_and_predict(roof=False, fold=FLAGS.fold, batch_size=FLAGS.batch_size,
+    model.train_and_predict(roof=True, fold=FLAGS.fold, batch_size=FLAGS.batch_size,
                             predict_batch_size=FLAGS.predict_batch_size,
-                            random_state=FLAGS.random_state)
+                            random_state=FLAGS.random_state, use_pseudo_label=True, pseudo_label_ratio=1.0)
     print('done')
 
 if __name__ == '__main__':

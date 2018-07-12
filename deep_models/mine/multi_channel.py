@@ -9,10 +9,11 @@ import sys
 import warnings
 warnings.filterwarnings('ignore')
 sys.path.append("../")
-from keras.models import Model, Sequential
+from keras.models import Model
 from keras.utils import plot_model
 from base_model import BaseModel
 from utils.keras_layers import *
+from layers import common
 
 
 class MultiChannelMatch(BaseModel):
@@ -23,12 +24,12 @@ class MultiChannelMatch(BaseModel):
         q2_input = Input(shape=(self.cfg.max_sequence_length,), dtype='int16', name='m1_q2_input')
 
         embed_layer = Embedding(data['nb_words'], self.cfg.embedding_dim, weights=[data['word_embedding_matrix']],
-                                input_length=self.cfg.max_sequence_length, trainable=self.cfg.embed_trainable)
+                                input_length=self.cfg.max_sequence_length, trainable=self.cfg.embed_trainable,
+                                name='embedding')
         q1_embed = embed_layer(q1_input)
         q2_embed = embed_layer(q2_input)
 
         ########## model1: bi-lstm encode + attention soft align #########
-
         bilstm_layer1 = Bidirectional(CuDNNLSTM(units=self.cfg.mine_multi_channel_cfg['m1_rnn_units'],
                                                 return_sequences=True))
         bilstm_layer2 = Bidirectional(CuDNNLSTM(units=self.cfg.mine_multi_channel_cfg['m1_rnn_units'],
@@ -48,26 +49,16 @@ class MultiChannelMatch(BaseModel):
         m1_q2_aligned_rep = apply_multiple(m1_q2_aligned, [GlobalAvgPool1D(), GlobalMaxPool1D()])
 
         ########## model2 1D-CNN #########
-        # Run through CONV + GAP layers
         cnn_out1 = []
         cnn_out2 = []
         merge_cnn_out_shape = 0
         for filters, kernel_size in self.cfg.mine_multi_channel_cfg['m2_1d_cnn_filters_kernels']:
-            conv_layer = Conv1D(filters=filters, kernel_size=kernel_size,
-                                padding=self.cfg.mine_multi_channel_cfg['m2_padding'],
-                                activation=self.cfg.mine_multi_channel_cfg['activation'])
-            conv1 = conv_layer(q1_embed)
-            conv2 = conv_layer(q2_embed)
-
-            # conv1, conv2 = common.gated_liner_units(q1_embed, q2_embed, filters=filters, kernel_size=kernel_size,
-            #                                         padding=self.cfg.mine_multi_channel_cfg['m2_padding'],
-            #                                         activation=self.cfg.mine_multi_channel_cfg['activation'])
-            # conv1, conv2 = common.gated_liner_units(conv1, conv2, filters=filters, kernel_size=kernel_size,
-            #                                         padding=self.cfg.mine_multi_channel_cfg['m2_padding'],
-            #                                         activation=self.cfg.mine_multi_channel_cfg['activation'])
-            # conv1, conv2 = common.gated_liner_units(conv1, conv2, filters=filters, kernel_size=kernel_size,
-            #                                         padding=self.cfg.mine_multi_channel_cfg['m2_padding'],
-            #                                         activation=self.cfg.mine_multi_channel_cfg['activation'])
+            conv1, conv2 = common.gated_liner_units(q1_embed, q2_embed, filters=filters, kernel_size=kernel_size,
+                                                    padding=self.cfg.mine_multi_channel_cfg['m2_padding'],
+                                                    activation=self.cfg.mine_multi_channel_cfg['activation'])
+            conv1, conv2 = common.gated_liner_units(conv1, conv2, filters=filters, kernel_size=kernel_size,
+                                                    padding=self.cfg.mine_multi_channel_cfg['m2_padding'],
+                                                    activation=self.cfg.mine_multi_channel_cfg['activation'])
 
             glob1 = GlobalAveragePooling1D()(conv1)
             cnn_out1.append(glob1)
@@ -87,8 +78,7 @@ class MultiChannelMatch(BaseModel):
         m1_att_diff = diff_features(m1_q1_aligned_rep, m1_q2_aligned_rep)
         m2_diff     = diff_features(m2_q1_rep, m2_q2_rep)
 
-        dense = concatenate([m1_diff, m1_att_diff, m2_diff])
-        # dense = BatchNormalization()(dense)
+        dense = concatenate([m1_diff, m1_att_diff, m2_diff, features_input])
 
         print('model1 features:', m1_diff.shape.as_list()[1])
         print('model1-att features:', m1_att_diff.shape.as_list()[1])
@@ -99,11 +89,12 @@ class MultiChannelMatch(BaseModel):
         ################ MLP for prediction ################
         for dense_unit in self.cfg.mine_multi_channel_cfg['mlp_dense_units']:
             dense = Dropout(self.cfg.mine_multi_channel_cfg['mlp_dense_dropout'])(dense)
-            dense = Dense(dense_unit, activation=self.cfg.mine_multi_channel_cfg['activation'])(dense)
+            dense = Dense(dense_unit, activation=None)(dense)
             dense = BatchNormalization()(dense)
+            dense = Activation(activation=self.cfg.mine_multi_channel_cfg['activation'])(dense)
 
         preds = Dense(units=1, activation='sigmoid')(dense)
-        model = Model(inputs=[q1_input, q2_input],
+        model = Model(inputs=[q1_input, q2_input, features_input],
                       outputs=preds)
 
         model.compile(

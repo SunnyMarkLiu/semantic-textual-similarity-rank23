@@ -29,6 +29,9 @@ class Configure(object):
     single_result_dir   =  '/d_2t/lq/projects/semantic_similarity/result/'
     save_ensemble_dir   = '/d_2t/lq/projects/semantic_similarity/result/ensemble/'
 
+    # 伪标签学习
+    pseudo_label_test = '/d_2t/lq/projects/semantic_similarity/input/current_best_test_predict.csv'
+
     features_path = '/d_2t/lq/projects/semantic_similarity/input/features/'
     # 待 merge 的特征（特征名：merge_on 的特征）
     features = {
@@ -49,7 +52,6 @@ class Configure(object):
     max_nb_chars        = 3048
     max_seq_chars_length= 56
 
-    random_state        = 0    # 随机数状态
     epochs              = 100   # 训练的最大 epoch，注意设置了 early stopping
 
     ########### models config ############
@@ -202,15 +204,14 @@ class Configure(object):
         'mlp_dense_units': [512, 128],
         'mlp_dense_dropout': 0.5,
         'activation': 'relu',
-        'optimizer': Adam(lr=1e-2, clipvalue=10.0)
+        'optimizer': Adam(lr=1e-3, clipvalue=10.0)
     }
 
     def params_to_string(self):
-        param_str = 'max_seq_len{}-max_nb_words{}_embed_train{}_seed{}_lr_decay{}'.format(
+        param_str = 'max_seq_len{}-max_nb_words{}_embed_train{}_lr_decay{}'.format(
             self.max_sequence_length,
             self.max_nb_words,
             self.embed_trainable,
-            self.random_state,
             self.lr_decay,
         )
         return param_str

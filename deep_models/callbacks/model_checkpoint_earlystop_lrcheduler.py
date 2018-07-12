@@ -92,7 +92,12 @@ class ModelCheckPointByBatch_EarlyStop_LRScheduler(Callback):
                     return
 
                 valid_pred = self.model.predict(self.valid_x, batch_size=self.valid_batch_size)[:, 0]
-                current = self.metric_fun(self.valid_y, valid_pred)
+
+                try:
+                    current = self.metric_fun(self.valid_y, valid_pred)
+                except:
+                    current = self.best
+
                 self.previous_valid_batch = batch
 
                 if current is None:
