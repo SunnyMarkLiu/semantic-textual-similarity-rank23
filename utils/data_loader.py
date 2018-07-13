@@ -61,7 +61,20 @@ def load_features():
     train.drop(['id', 'q1', 'q2', 'q1_words', 'q1_chars', 'q2_words', 'q2_chars', 'label'], axis=1, inplace=True)
     test.drop(['id', 'q1', 'q2', 'q1_words', 'q1_chars', 'q2_words', 'q2_chars',], axis=1, inplace=True)
 
-    return train, test
+    selected_features = ['q1_q2_intersect', 'char_skew_q2vec', 'common_chars', 'char_kur_q1vec', 'braycurtis_distance',
+                         'kur_q1vec', 'same_start_word', 'chars_fuzz_partial_token_set_ratio', 'cityblock_distance',
+                         'same_start_char', 'cosine_distance', 'char_minkowski_distance', 'char_kur_q2vec',
+                         'common_words', 'char_cityblock_distance', 'minkowski_distance', 'char_skew_q1vec',
+                         'char_canberra_distance', 'chars_fuzz_token_sort_ratio', 'kur_q2vec', 'char_diff_len',
+                         'word_diff_len', 'skew_q1vec', 'total_unique_chars', 'chars_fuzz_partial_ratio',
+                         'char_braycurtis_distance', 'skew_q2vec', 'chars_fuzz_qratio', 'canberra_distance',
+                         'words_fuzz_partial_token_set_ratio', 'chars_fuzz_token_set_ratio', 'char_set_diff_len',
+                         'q1_freq', 'chars_fuzz_partial_token_sort_ratio', 'q2_freq', 'total_unique_words',
+                         'words_fuzz_qratio', 'words_fuzz_partial_token_sort_ratio', 'word_set_diff_len',
+                         'words_fuzz_WRatio', 'words_fuzz_token_sort_ratio', 'words_fuzz_token_set_ratio',
+                         'words_fuzz_partial_ratio', 'chars_fuzz_WRatio']
+
+    return train[selected_features], test[selected_features]
 
 
 def load_datas(word_embed_path, question_file, train_data_file, test_data_file,

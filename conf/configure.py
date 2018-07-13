@@ -21,7 +21,7 @@ class Configure(object):
     test_data_file      = '/d_2t/lq/projects/semantic_similarity/input/test.csv'
     question_file       = '/d_2t/lq/projects/semantic_similarity/input/question.csv'
 
-    word_embed_path     = '/d_2t/lq/projects/semantic_similarity/input/word_embed.txt'
+    word_embed_path     = '/d_2t/lq/projects/semantic_similarity/input/word300_3_0.vector'
     char_embed_path     = '/d_2t/lq/projects/semantic_similarity/input/char_embed.txt'
 
     # 最有模型保存路径
@@ -45,7 +45,7 @@ class Configure(object):
     max_sequence_length = 39    # 序列的最大长度
     max_nb_words        = 20890 # 词汇表的最大词汇数
     embedding_dim       = 300   # 词向量的维度
-    embed_trainable     = False  # 词向量是否可训练
+    embed_trainable     = True  # 词向量是否可训练
     use_data_aug        = False  # 是否使用数据扩充
     aug_frac            = 1   # 数据扩充比例
 

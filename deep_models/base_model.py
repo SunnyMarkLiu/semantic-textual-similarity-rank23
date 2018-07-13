@@ -57,7 +57,9 @@ class BaseModel(object):
         # model = self.to_multi_gpu(model, n_gpus=2)
 
         # save initial weights, 手动保存的一个初始化 weights
-        initial_model_name = '{}_add_features_initial_weights.h5'.format(self.model_name)
+        # initial_model_name = '{}_initial_weights.h5'.format(self.model_name)
+        # initial_model_name = '{}_add_features_initial_weights.h5'.format(self.model_name)
+        initial_model_name = '{}_add_selected_features_initial_weights.h5'.format(self.model_name)
         initial_model_path = best_model_dir + initial_model_name
         if os.path.exists(initial_model_path):
             print('load initial weights')
