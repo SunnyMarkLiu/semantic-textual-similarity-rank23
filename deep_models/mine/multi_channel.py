@@ -20,10 +20,12 @@ class MultiChannelMatch(BaseModel):
 
     def build_model(self, data):
         ########## Input and embedding layer #########
-        q1_input = Input(shape=(self.cfg.max_sequence_length,), dtype='int16', name='m1_q1_input')
-        q2_input = Input(shape=(self.cfg.max_sequence_length,), dtype='int16', name='m1_q2_input')
+        seq_length = self.cfg.max_sequence_length if self.word_chars == "words" else self.cfg.max_seq_chars_length
 
-        embed_layer = Embedding(data['nb_words'], self.cfg.embedding_dim, weights=[data['word_embedding_matrix']],
+        q1_input = Input(shape=(seq_length,), dtype='int16', name='m1_q1_input')
+        q2_input = Input(shape=(seq_length,), dtype='int16', name='m1_q2_input')
+
+        embed_layer = Embedding(data['nb_{}'.format(self.word_chars)], self.cfg.embedding_dim, weights=[data['word_embedding_matrix']],
                                 input_length=self.cfg.max_sequence_length, trainable=self.cfg.embed_trainable,
                                 name='embedding')
         q1_embed = embed_layer(q1_input)

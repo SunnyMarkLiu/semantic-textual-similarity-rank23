@@ -28,12 +28,13 @@ class BaseModel(object):
     """ Abstract base model for all text matching model """
     __metaclass__ = ABCMeta
 
-    def __init__(self, data, cfg, lr_drop_epoch, model_name, engineer_feature_count=0):
+    def __init__(self, data, cfg, lr_drop_epoch, model_name, engineer_feature_count=0, word_chars="words"):
         self.data = data
         self.cfg = cfg
         self.lr_drop_epoch = lr_drop_epoch
         self.model_name = model_name
         self.engineer_feature_count = engineer_feature_count
+        self.word_chars = word_chars
         self.time_str = time.strftime('%m_%d_%H_%M', time.localtime(time.time()))
 
     @NotImplementedError
@@ -48,7 +49,7 @@ class BaseModel(object):
         if not os.path.exists(best_model_dir):
             os.makedirs(best_model_dir)
 
-        pred_train_full = np.zeros(len(self.data['train_q1_words_seqs']))
+        pred_train_full = np.zeros(len(self.data['train_q1_{}_seqs'.format(self.word_chars)]))
         pred_test_full = 0
         cv_logloss = []
         roof_flod = fold
@@ -59,7 +60,7 @@ class BaseModel(object):
         # save initial weights, 手动保存的一个初始化 weights
         # initial_model_name = '{}_initial_weights.h5'.format(self.model_name)
         # initial_model_name = '{}_add_features_initial_weights.h5'.format(self.model_name)
-        initial_model_name = '{}_add_selected_features_initial_weights.h5'.format(self.model_name)
+        initial_model_name = '{}_add_selected_features_initial_weights_{}.h5'.format(self.model_name, self.word_chars)
         initial_model_path = best_model_dir + initial_model_name
         if os.path.exists(initial_model_path):
             print('load initial weights')
@@ -69,22 +70,22 @@ class BaseModel(object):
 
         kf = StratifiedKFold(n_splits=roof_flod, shuffle=True, random_state=random_state)
         for kfold, (train_index, valid_index) in enumerate(
-                kf.split(self.data['train_q1_words_seqs'], self.data['labels'])):
+                kf.split(self.data['train_q1_{}_seqs'.format(self.word_chars)], self.data['labels'])):
             print('\n============== perform fold {}, total folds {} =============='.format(kfold, roof_flod))
 
-            train_input1 = self.data['train_q1_words_seqs'][train_index]
-            train_input2 = self.data['train_q2_words_seqs'][train_index]
+            train_input1 = self.data['train_q1_{}_seqs'.format(self.word_chars)][train_index]
+            train_input2 = self.data['train_q2_{}_seqs'.format(self.word_chars)][train_index]
             train_features = self.data['train_features'][train_index]
             train_y = self.data['labels'][train_index]
 
             if use_pseudo_label:
                 random.seed(random_state)
 
-                test_size = self.data['test_q1_words_seq'].shape[0]
+                test_size = self.data['test_q1_{}_seq'.format(self.word_chars)].shape[0]
                 pseudo_index = random.sample(range(0, test_size), int(pseudo_label_ratio * test_size))
 
-                train_input1 = np.concatenate((train_input1, self.data['test_q1_words_seq'][pseudo_index]), axis=0)
-                train_input2 = np.concatenate((train_input2, self.data['test_q2_words_seq'][pseudo_index]), axis=0)
+                train_input1 = np.concatenate((train_input1, self.data['test_q1_{}_seq'.format(self.word_chars)][pseudo_index]), axis=0)
+                train_input2 = np.concatenate((train_input2, self.data['test_q2_{}_seq'.format(self.word_chars)][pseudo_index]), axis=0)
                 train_features = np.concatenate((train_features, self.data['test_features'][pseudo_index]), axis=0)
                 train_y = np.concatenate((train_y, self.data['test_pred_labels'][pseudo_index]), axis=0)
 
@@ -94,8 +95,8 @@ class BaseModel(object):
                 train_input2 = train_input2[shuffle_index]
                 train_y = train_y[shuffle_index]
 
-            valid_input1 = self.data['train_q1_words_seqs'][valid_index]
-            valid_input2 = self.data['train_q2_words_seqs'][valid_index]
+            valid_input1 = self.data['train_q1_{}_seqs'.format(self.word_chars)][valid_index]
+            valid_input2 = self.data['train_q2_{}_seqs'.format(self.word_chars)][valid_index]
             valid_features = self.data['train_features'][valid_index]
             valid_y = self.data['labels'][valid_index]
 
@@ -175,8 +176,8 @@ class BaseModel(object):
             print('current best valid_logloss: {}'.format(valid_logloss))
             cv_logloss.append(valid_logloss)
 
-            text_x_1 = [self.data['test_q1_words_seq'], self.data['test_q2_words_seq'], self.data['test_features']]
-            text_x_2 = [self.data['test_q2_words_seq'], self.data['test_q1_words_seq'], self.data['test_features']]
+            text_x_1 = [self.data['test_q1_{}_seq'.format(self.word_chars)], self.data['test_q2_{}_seq'.format(self.word_chars)], self.data['test_features']]
+            text_x_2 = [self.data['test_q2_{}_seq'.format(self.word_chars)], self.data['test_q1_{}_seq'.format(self.word_chars)], self.data['test_features']]
 
             test_pred_1 = model.predict(text_x_1, batch_size=predict_batch_size)[:, 0]
             test_pred_2 = model.predict(text_x_2, batch_size=predict_batch_size)[:, 0]
@@ -194,20 +195,20 @@ class BaseModel(object):
         print("saving predictions for ensemble")
         test_df = pd.DataFrame({'y_pre': pred_train_full})
         test_df.to_csv('{}train_{}_{}_cv{}_{}.csv'.format(
-            self.cfg.save_ensemble_dir, self.model_name,
-            self.cfg.params_to_string() + '_fold{}'.format(fold) + '_batch_size{}'.format(batch_size),
-            mean_valid_logloss, self.time_str
-        ),
+                self.cfg.save_ensemble_dir, self.model_name,
+                self.cfg.params_to_string() + '_fold{}'.format(fold) + '_batch_size{}'.format(batch_size),
+                mean_valid_logloss, self.time_str
+            ),
             index=False
         )
 
         test_predict = pred_test_full / float(roof_flod)
         test_df = pd.DataFrame({'y_pre': test_predict})
         test_df.to_csv('{}test_{}_{}_cv{}_{}.csv'.format(
-            self.cfg.save_ensemble_dir, self.model_name,
-            self.cfg.params_to_string() + '_fold{}'.format(fold) + '_batch_size{}'.format(batch_size),
-            mean_valid_logloss, self.time_str
-        ),
+                self.cfg.save_ensemble_dir, self.model_name,
+                self.cfg.params_to_string() + '_fold{}'.format(fold) + '_batch_size{}'.format(batch_size),
+                mean_valid_logloss, self.time_str
+            ),
             index=False
         )
 
@@ -250,20 +251,6 @@ class BaseModel(object):
                                      mode='min')
         callbacks = [early_stop, model_ckpt]
 
-        model.fit([x_train1, x_train2], y_train, batch_size=predict_batch_size, epochs=self.cfg.epochs,
-                  validation_data=([x_valid1, x_valid2], y_valid), callbacks=callbacks)
-
-        print('set embedding trainable, fine tuning')
-        # load previous best model
-        model.load_weights(filepath=best_model_path)
-        # clear！
-        early_stop.wait = 0
-
-        # set embedding layer trainable
-        model.get_layer('embedding').trainable = True
-        # recompile
-        model.compile(loss='binary_crossentropy', optimizer=optimizers.SGD(lr=0.0005), metrics=['accuracy'])
-        # retrain
         model.fit([x_train1, x_train2], y_train, batch_size=predict_batch_size, epochs=self.cfg.epochs,
                   validation_data=([x_valid1, x_valid2], y_valid), callbacks=callbacks)
 
