@@ -56,10 +56,8 @@ def time_distributed(input_, layers):
 def soft_attention_alignment(input_1, input_2):
     """Align text representation with neural soft attention"""
     attention = Dot(axes=-1)([input_1, input_2])
-    w_att_1 = Lambda(lambda x: softmax(x, axis=1),
-                     output_shape=unchanged_shape)(attention)
-    w_att_2 = Permute((2, 1))(Lambda(lambda x: softmax(x, axis=2),
-                                     output_shape=unchanged_shape)(attention))
+    w_att_1 = Lambda(lambda x: softmax(x, axis=1), output_shape=unchanged_shape)(attention)
+    w_att_2 = Permute((2, 1))(Lambda(lambda x: softmax(x, axis=2), output_shape=unchanged_shape)(attention))
     in1_aligned = Dot(axes=1)([w_att_1, input_1])
     in2_aligned = Dot(axes=1)([w_att_2, input_2])
     return in1_aligned, in2_aligned

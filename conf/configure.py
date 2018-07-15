@@ -17,22 +17,25 @@ class Configure(object):
     """ global configuration """
 
     # directories
-    train_data_file     = '/d_2t/lq/projects/semantic_similarity/input/train.csv'
-    test_data_file      = '/d_2t/lq/projects/semantic_similarity/input/test.csv'
-    question_file       = '/d_2t/lq/projects/semantic_similarity/input/question.csv'
+    base_path           = '/d_2t/lq/projects/semantic_similarity'
+    # base_path           = '/data/sunnymarkliu/competitions/semantic_similarity'
 
-    word_embed_path     = '/d_2t/lq/projects/semantic_similarity/input/word300_3_0.vector'
-    char_embed_path     = '/d_2t/lq/projects/semantic_similarity/input/char_embed.txt'
+    train_data_file     = base_path + '/input/train.csv'
+    test_data_file      = base_path + '/input/test.csv'
+    question_file       = base_path + '/input/question.csv'
+
+    word_embed_path     = base_path + '/input/word300_3_0.vector'
+    char_embed_path     = base_path + '/input/char_embed.txt'
 
     # 最有模型保存路径
-    model_save_base_dir = '/d_2t/lq/projects/semantic_similarity/deep_models/check_points/'
-    single_result_dir   =  '/d_2t/lq/projects/semantic_similarity/result/'
-    save_ensemble_dir   = '/d_2t/lq/projects/semantic_similarity/result/ensemble/'
+    model_save_base_dir = base_path + '/deep_models/check_points/'
+    single_result_dir   =  base_path + '/result/'
+    save_ensemble_dir   = base_path + '/result/ensemble/'
 
     # 伪标签学习
-    pseudo_label_test = '/d_2t/lq/projects/semantic_similarity/input/current_best_test_predict.csv'
+    pseudo_label_test = base_path + '/input/current_best_test_predict.csv'
 
-    features_path = '/d_2t/lq/projects/semantic_similarity/input/features/'
+    features_path = base_path + '/input/features/'
     # 待 merge 的特征（特征名：merge_on 的特征）
     features = {
         'basic_features' : {'on': 'id', 'how': 'left'},
@@ -127,12 +130,12 @@ class Configure(object):
     }
 
     esim_cfg = {
-        'embed_dropout': 0.2,
-        'rnn_units': 300,
-        'dense_units': [300, 300],
+        'rnn_units': 192,
+
+        'dense_units': [512, 128],
         'dense_dropout': 0.5,
-        'activation': 'elu',
-        'optimizer': Adam(lr=1e-4)
+        'activation': 'relu',
+        'optimizer': Adam(lr=1e-3, clipvalue=10.0)
     }
 
     decom_att_cfg= {

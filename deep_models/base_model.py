@@ -240,7 +240,7 @@ class BaseModel(object):
 
         early_stop = EarlyStopping(monitor='val_loss',
                                    min_delta=1e-4,
-                                   patience=3,
+                                   patience=2,
                                    mode='min')
         model_ckpt = ModelCheckpoint(filepath=best_model_path,
                                      monitor='val_loss',
