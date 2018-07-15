@@ -23,15 +23,19 @@ class DSSM(BaseModel):
         """
         built model architecture
         """
-        seq_1_input = Input(shape=(self.cfg.max_sequence_length,), dtype='int32')
-        seq_2_input = Input(shape=(self.cfg.max_sequence_length,), dtype='int32')
-        embedding_layer = Embedding(data['nb_words'],
-                                    self.cfg.embedding_dim,
-                                    weights=[data['word_embedding_matrix']],
-                                    input_length=self.cfg.max_sequence_length,
-                                    trainable=self.cfg.embed_trainable)
-        embed_seq_1 = embedding_layer(seq_1_input)
-        embed_seq_2 = embedding_layer(seq_2_input)
+        seq_length = self.cfg.max_seq_words_length if self.word_chars == "words" else self.cfg.max_seq_chars_length
+
+        q1_input = Input(shape=(seq_length,), dtype='int16', name='q1_input')
+        q2_input = Input(shape=(seq_length,), dtype='int16', name='q2_input')
+
+        embed_weights = data['{}_embedding_matrix'.format(self.word_chars[:-1])]
+        embed_layer = Embedding(data['nb_{}'.format(self.word_chars)], self.cfg.embedding_dim,
+                                weights=[embed_weights],
+                                input_length=seq_length, trainable=self.cfg.embed_trainable,
+                                name='embedding')
+
+        embed_seq_1 = embed_layer(q1_input)
+        embed_seq_2 = embed_layer(q2_input)
 
         q1 = TimeDistributed(Dense(self.cfg.embedding_dim, activation='relu'))(embed_seq_1)
         q1 = Lambda(lambda x: K.max(x, axis=1), output_shape=(self.cfg.embedding_dim,))(q1)
@@ -48,16 +52,17 @@ class DSSM(BaseModel):
         ########## engineered features #########
         features_input = Input(shape=(self.engineer_feature_count,), dtype='float', name='engineered_features')
 
-        merged = concatenate([subtracted_out, mse_out, multiply_out, features_input])
-        merged = BatchNormalization()(merged)
+        features = concatenate([subtracted_out, mse_out, multiply_out, features_input])
+        features = BatchNormalization()(features)
+        print('total feature shape:', features.shape.as_list()[1])
 
         for dense_unit in self.cfg.dssm_cfg['dense_units']:
-            merged = Dropout(self.cfg.dssm_cfg['dense_dropout'])(merged)
-            merged = Dense(dense_unit, activation=self.cfg.dssm_cfg['activation'])(merged)
-            merged = BatchNormalization()(merged)
+            features = Dropout(self.cfg.dssm_cfg['dense_dropout'])(features)
+            features = Dense(dense_unit, activation=self.cfg.dssm_cfg['activation'])(features)
+            features = BatchNormalization()(features)
 
-        preds = Dense(1, activation='sigmoid')(merged)
-        model = Model(inputs=[seq_1_input, seq_2_input, features_input],
+        preds = Dense(1, activation='sigmoid')(features)
+        model = Model(inputs=[q1_input, q2_input, features_input],
                       outputs=preds)
         model.compile(loss='binary_crossentropy', optimizer=self.cfg.dssm_cfg['optimizer'], metrics=['binary_accuracy'])
         # model.summary()
@@ -72,14 +77,15 @@ class CNN_DSSM(BaseModel):
     """
 
     def build_model(self, data):
-        seq_length = self.cfg.max_sequence_length if self.word_chars == "words" else self.cfg.max_seq_chars_length
+        seq_length = self.cfg.max_seq_words_length if self.word_chars == "words" else self.cfg.max_seq_chars_length
 
-        q1_input = Input(shape=(seq_length,), dtype='int16', name='m1_q1_input')
-        q2_input = Input(shape=(seq_length,), dtype='int16', name='m1_q2_input')
+        q1_input = Input(shape=(seq_length,), dtype='int16', name='q1_input')
+        q2_input = Input(shape=(seq_length,), dtype='int16', name='q2_input')
 
+        embed_weights = data['{}_embedding_matrix'.format(self.word_chars[:-1])]
         embed_layer = Embedding(data['nb_{}'.format(self.word_chars)], self.cfg.embedding_dim,
-                                weights=[data['word_embedding_matrix']],
-                                input_length=self.cfg.max_sequence_length, trainable=self.cfg.embed_trainable,
+                                weights=[embed_weights],
+                                input_length=seq_length, trainable=self.cfg.embed_trainable,
                                 name='embedding')
 
         q1_embed = embed_layer(q1_input)
@@ -97,13 +103,9 @@ class CNN_DSSM(BaseModel):
                                                        padding=self.cfg.cnn_dssm_cfg['padding'],
                                                        activation=self.cfg.cnn_dssm_cfg['activation'])
 
-            bilstm_layer = Bidirectional(CuDNNLSTM(units=self.cfg.cnn_dssm_cfg['rnn_units'],
-                                                    return_sequences=True))
-            conv1 = bilstm_layer(conv1)
             glob1 = GlobalAveragePooling1D()(conv1)
             cnn_out1.append(glob1)
 
-            conv2 = bilstm_layer(conv2)
             glob2 = GlobalAveragePooling1D()(conv2)
             cnn_out2.append(glob2)
 
@@ -114,10 +116,10 @@ class CNN_DSSM(BaseModel):
 
         diff_rep = diff_features(q1_rep, q2_rep)
         ########## engineered features #########
-        # features_input = Input(shape=(self.engineer_feature_count,), dtype='float', name='engineered_features')
+        features_input = Input(shape=(self.engineer_feature_count,), dtype='float', name='engineered_features')
 
-        # features = Concatenate()([diff_rep, features_input])
-        features = diff_rep
+        features = Concatenate()([q1_rep, q2_rep, diff_rep, features_input])
+        # features = diff_rep
         print('total feature shape:', features.shape.as_list()[1])
         merged = BatchNormalization()(features)
 
@@ -129,8 +131,8 @@ class CNN_DSSM(BaseModel):
             merged = Activation(activation=self.cfg.cnn_dssm_cfg['activation'])(merged)
 
         preds = Dense(1, activation='sigmoid')(merged)
-        # model = Model(inputs=[q1_input, q2_input, features_input], outputs=preds)
-        model = Model(inputs=[q1_input, q2_input], outputs=preds)
+        model = Model(inputs=[q1_input, q2_input, features_input], outputs=preds)
+        # model = Model(inputs=[q1_input, q2_input], outputs=preds)
         model.compile(loss='binary_crossentropy', optimizer=self.cfg.cnn_dssm_cfg['optimizer'],
                       metrics=['binary_accuracy'])
         # model.summary()
@@ -142,11 +144,11 @@ class CNN_DSSM(BaseModel):
 class GRU_DSSM(BaseModel):
 
     def build_model(self, data):
-        q1_input = Input(shape=(self.cfg.max_sequence_length,), dtype='int16', name='m1_q1_input')
-        q2_input = Input(shape=(self.cfg.max_sequence_length,), dtype='int16', name='m1_q2_input')
+        q1_input = Input(shape=(self.cfg.max_seq_words_length,), dtype='int16', name='m1_q1_input')
+        q2_input = Input(shape=(self.cfg.max_seq_words_length,), dtype='int16', name='m1_q2_input')
 
         embed_layer = Embedding(data['nb_words'], self.cfg.embedding_dim, weights=[data['word_embedding_matrix']],
-                                input_length=self.cfg.max_sequence_length, trainable=self.cfg.embed_trainable,
+                                input_length=self.cfg.max_seq_words_length, trainable=self.cfg.embed_trainable,
                                 name='embedding')
         q1_embed = embed_layer(q1_input)
         q2_embed = embed_layer(q2_input)

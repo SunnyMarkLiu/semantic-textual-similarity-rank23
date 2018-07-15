@@ -43,7 +43,7 @@ def main():
     data = data_loader.load_datas(
         word_embed_path=cfg.word_embed_path, question_file=cfg.question_file,
         train_data_file=cfg.train_data_file, test_data_file=cfg.test_data_file,
-        max_nb_words=cfg.max_nb_words, max_sequence_length=cfg.max_sequence_length,
+        max_nb_words=cfg.max_nb_words, max_sequence_length=cfg.max_seq_words_length,
         embedding_dim=cfg.embedding_dim,
 
         char_embed_path=cfg.char_embed_path, max_nb_chars=cfg.max_nb_chars,
@@ -63,7 +63,7 @@ def main():
     model = cls(data=data, cfg=cfg, lr_drop_epoch=FLAGS.lr_drop_epoch, model_name=cls_name,
                 engineer_feature_count=data['train_features'].shape[1], word_chars=FLAGS.word_chars)
     print('===> train and predict')
-    model.train_and_predict(roof=False, fold=FLAGS.fold, batch_size=FLAGS.batch_size,
+    model.train_and_predict(roof=True, fold=FLAGS.fold, batch_size=FLAGS.batch_size,
                             predict_batch_size=FLAGS.predict_batch_size,
                             random_state=FLAGS.random_state, use_pseudo_label=True, pseudo_label_ratio=1.0)
     print('done')

@@ -20,13 +20,18 @@ class MultiChannelMatch(BaseModel):
 
     def build_model(self, data):
         ########## Input and embedding layer #########
-        seq_length = self.cfg.max_sequence_length if self.word_chars == "words" else self.cfg.max_seq_chars_length
+        seq_length = self.cfg.max_seq_words_length if self.word_chars == "words" else self.cfg.max_seq_chars_length
 
         q1_input = Input(shape=(seq_length,), dtype='int16', name='m1_q1_input')
         q2_input = Input(shape=(seq_length,), dtype='int16', name='m1_q2_input')
 
-        embed_layer = Embedding(data['nb_{}'.format(self.word_chars)], self.cfg.embedding_dim, weights=[data['word_embedding_matrix']],
-                                input_length=self.cfg.max_sequence_length, trainable=self.cfg.embed_trainable,
+        embed_weights = data['{}_embedding_matrix'.format(self.word_chars[:-1])]
+
+        embed_layer = Embedding(data['nb_{}'.format(self.word_chars)],
+                                self.cfg.embedding_dim,
+                                weights=[embed_weights],
+                                input_length=seq_length,
+                                trainable=self.cfg.embed_trainable,
                                 name='embedding')
         q1_embed = embed_layer(q1_input)
         q2_embed = embed_layer(q2_input)
@@ -81,6 +86,10 @@ class MultiChannelMatch(BaseModel):
         m2_diff     = diff_features(m2_q1_rep, m2_q2_rep)
 
         dense = concatenate([m1_diff, m1_att_diff, m2_diff, features_input])
+
+        # dense = concatenate([m1_q1_aligned_rep, m1_q2_aligned_rep, m1_diff, m1_att_diff,
+        #                      m2_q1_rep, m2_q2_rep, m2_diff,
+        #                      features_input])
 
         print('model1 features:', m1_diff.shape.as_list()[1])
         print('model1-att features:', m1_att_diff.shape.as_list()[1])

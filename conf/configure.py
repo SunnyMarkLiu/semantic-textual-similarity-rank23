@@ -42,7 +42,7 @@ class Configure(object):
     # global params
     initial_lr          = 0.01  # 初始 lr
     lr_decay            = 1     # lr 衰减比例
-    max_sequence_length = 39    # 序列的最大长度
+    max_seq_words_length = 39    # 序列的最大长度
     max_nb_words        = 20890 # 词汇表的最大词汇数
     embedding_dim       = 300   # 词向量的维度
     embed_trainable     = True  # 词向量是否可训练
@@ -62,7 +62,7 @@ class Configure(object):
         'dense_dropout' : 0.3,
         'dense_units'   : [1024, 512, 256],
         'activation'    : 'relu',
-        'optimizer'     : 'adam'
+        'optimizer'     : Adam(lr=1e-3, clipvalue=10.0)
     }
 
     gru_dssm_cfg = {
@@ -165,7 +165,7 @@ class Configure(object):
 
     def params_to_string(self):
         param_str = 'max_seq_len{}-max_nb_words{}_embed_train{}_lr_decay{}'.format(
-            self.max_sequence_length,
+            self.max_seq_words_length,
             self.max_nb_words,
             self.embed_trainable,
             self.lr_decay,

@@ -18,6 +18,7 @@ def substract(input_1, input_2):
     """Substract element-wise"""
     neg_input_2 = Lambda(lambda x: -x, output_shape=unchanged_shape)(input_2)
     out_ = Add()([input_1, neg_input_2])
+    out_ = Lambda(lambda x: abs(x), output_shape=unchanged_shape)(out_)
     return out_
 
 
