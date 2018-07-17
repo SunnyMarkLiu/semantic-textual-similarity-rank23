@@ -199,6 +199,9 @@ class BaseModel(object):
             ),
             index=False
         )
+        print('--------------------------------------------')
+        print('test predict mean: {:.6f}, std: {:.6f}'.format(np.mean(test_predict), np.std(test_predict)))
+        print('done.')
 
     def _simple_train_predict(self, predict_batch_size):
         best_model_dir = self.cfg.model_save_base_dir + self.model_name + '/'
