@@ -32,6 +32,8 @@ class Configure(object):
     single_result_dir   =  base_path + '/result/'
     save_ensemble_dir   = base_path + '/result/ensemble/'
 
+    save_stable_ensemble_dir   = base_path + '/result/stable_ensemble/'
+
     # 伪标签学习
     pseudo_label_test = base_path + '/input/current_best_test_predict.csv'
 
@@ -39,7 +41,18 @@ class Configure(object):
     # 待 merge 的特征（特征名：merge_on 的特征）
     features = {
         'basic_features' : {'on': 'id', 'how': 'left'},
-        'basic_features2': {'on': 'id', 'how': 'left'}
+        'basic_features2': {'on': 'id', 'how': 'left'},
+        'graph_features' : {'on': 'id', 'how': 'left'},
+        'diff_features'  : {'on': 'id', 'how': 'left'},
+
+        'max_clique_features' : {'on': 'id', 'how': 'left'},
+        'tfidf_sim_features'  : {'on': 'id', 'how': 'left'},
+        'doc_sim_features'    : {'on': 'id', 'how': 'left'},
+        'lda_features'        : {'on': 'id', 'how': 'left'},
+        'pagerank_directed_features': {'on': 'id', 'how': 'left'},
+        'wordnet_features': {'on': 'id', 'how': 'left'},
+        # 'hashed_features': {'on': 'id', 'how': 'left'},
+        # 'pr_features': {'on': 'id', 'how': 'left'},
     }
 
     # global params

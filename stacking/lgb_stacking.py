@@ -11,11 +11,10 @@ import sys
 sys.path.append("../")
 import numpy as np
 import pandas as pd
-import xgboost as xgb
-from sklearn.metrics import log_loss
 from sklearn.model_selection import StratifiedKFold
 from utils import data_loader
 from conf.configure import Configure
+import lightgbm as lgb
 
 
 def get_xgb_importance(clf, features):
@@ -53,17 +52,17 @@ def load_dataset():
     train = pd.DataFrame({'label': train_df['label']})
     test = pd.DataFrame()
     roof_count = 0
-    for f in roof_result:
-        feature = '_'.join(f[:-4].split('_')[1:])
-        if f.startswith('test'):
-            test_i = pd.read_csv(base + f)
-            test[feature] = test_i['y_pre']
-            roof_count += 1
-        else:
-            train_i = pd.read_csv(base + f)
-            train[feature] = train_i['y_pre']
-
-    train = train[['label'] + test.columns.values.tolist()]
+    # for f in roof_result:
+    #     feature = '_'.join(f[:-4].split('_')[1:])
+    #     if f.startswith('test'):
+    #         test_i = pd.read_csv(base + f)
+    #         test[feature] = test_i['y_pre']
+    #         roof_count += 1
+    #     else:
+    #         train_i = pd.read_csv(base + f)
+    #         train[feature] = train_i['y_pre']
+    #
+    # train = train[['label'] + test.columns.values.tolist()]
 
     print('loaded {} model features'.format(roof_count))
 
@@ -115,7 +114,6 @@ def main():
     print("load train test datasets")
     train, test = load_dataset()
     y_train_all = train['label'].values
-    test_pre_lebels = test['label'].values
 
     train.drop(['label'], axis=1, inplace=True)
     test.drop(['label'], axis=1, inplace=True)
@@ -123,70 +121,53 @@ def main():
 
     train = train.values
     test = test.values
-    # train = np.concatenate((train.values, test.values), axis=0)
-    # y_train_all = np.concatenate((y_train_all, test_pre_lebels), axis=0)
-
     print('train: {}, test: {}, feature count: {}, label 1:0 = {:.5f}'.format(
         train.shape, test.shape, len(df_columns), 1.0 * sum(y_train_all) / len(y_train_all)))
 
-    xgb_params = {
-        'eta': 0.005,
-        'max_depth': 6,
-        'subsample': 0.9,
-        'eval_metric': 'logloss',
-        'objective': 'binary:logistic',
-        'updater': 'grow_gpu',
-        'gpu_id': 2,
+    model_params = {
+        'boosting_type': 'gbdt',
+        'objective': 'binary',
+        'metric': 'binary_logloss',
+        'learning_rate': 0.01,
+        'num_leaves': 32,
+        'feature_fraction': 0.9,
+        'bagging_fraction': 0.9,
+        'bagging_seed': 10,
+        'feature_fraction_seed': 10,
         'nthread': -1,
-        'silent': 1,
-        'booster': 'gbtree',
+        'verbose': 0
     }
-
-    dtest = xgb.DMatrix(test, feature_names=df_columns)
 
     pred_train_full = np.zeros(train.shape[0])
     pred_test_full = 0
-    cv_scores = []
     roof_flod = 5
 
-    kf = StratifiedKFold(n_splits=roof_flod, shuffle=True, random_state=5201314)
+    kf = StratifiedKFold(n_splits=roof_flod, shuffle=True, random_state=1314)
     for i, (dev_index, val_index) in enumerate(kf.split(train, y_train_all)):
         print('========== perform fold {}, train size: {}, validate size: {} =========='.format(i, len(dev_index),
                                                                                                 len(val_index)))
         train_x, val_x = train[dev_index], train[val_index]
         train_y, val_y = y_train_all[dev_index], y_train_all[val_index]
-        dtrain = xgb.DMatrix(train_x, label=train_y, feature_names=df_columns)
-        dval = xgb.DMatrix(val_x, label=val_y, feature_names=df_columns)
 
-        model = xgb.train(xgb_params, dtrain,
-                          evals=[(dtrain, 'train'), (dval, 'valid')],
-                          verbose_eval=100,
-                          early_stopping_rounds=100,
-                          num_boost_round=4000)
+        lgb_train = lgb.Dataset(train_x, train_y)
+        lgb_eval = lgb.Dataset(val_x, val_y, reference=lgb_train)
 
-        fea_imp = get_xgb_importance(model, features=df_columns)
-        fea_imp.to_csv("feature_importance.csv", index=False, columns=['feature', 'importance'], sep='\t')
+        model = lgb.train(model_params, lgb_train, num_boost_round=5000, valid_sets=[lgb_train, lgb_eval],
+                          valid_names=['train', 'eval'], early_stopping_rounds=100, verbose_eval=200)
 
         # predict validate
-        predict_valid = model.predict(dval, ntree_limit=model.best_ntree_limit)
-        valid_auc = log_loss(val_y, predict_valid, eps=1e-10)
+        predict_valid = model.predict(val_x, num_iteration=model.best_iteration)
         # predict test
-        predict_test = model.predict(dtest, ntree_limit=model.best_ntree_limit)
-
-        print('valid_logloss = {}'.format(valid_auc))
-        cv_scores.append(valid_auc)
+        predict_test = model.predict(test, num_iteration=model.best_iteration)
 
         # run-out-of-fold predict
         pred_train_full[val_index] = predict_valid
         pred_test_full += predict_test
 
-    mean_cv_scores = np.mean(cv_scores)
-    print('Mean cv logloss:', mean_cv_scores)
-
     print("saving test predictions for ensemble")
     pred_test_full = pred_test_full / float(roof_flod)
     test_pred_df = pd.DataFrame({'y_pre': pred_test_full})
-    test_pred_df.to_csv("final_xgboost_stacking_models.csv", index=False, columns=['y_pre'], sep='\t')
+    test_pred_df.to_csv("final_lightgbm_stacking_models.csv", index=False, columns=['y_pre'], sep='\t')
 
     print('-------- predict and check  ------')
     print('test 1 count: {:.6f}, mean: {:.6f}'.format(np.sum(test_pred_df['y_pre']), np.mean(test_pred_df['y_pre'])))

@@ -19,9 +19,7 @@ sys.path.append("../")
 from abc import ABCMeta
 from keras.callbacks import TensorBoard, ModelCheckpoint, EarlyStopping
 from sklearn.metrics import log_loss
-from utils.keras_callbaks import ModelSave_EarlyStop_LRDecay
 from sklearn.model_selection import StratifiedKFold, train_test_split
-from keras import optimizers
 
 
 class BaseModel(object):
@@ -67,7 +65,7 @@ class BaseModel(object):
             model.save_weights(initial_model_path, overwrite=True)
 
         kf = StratifiedKFold(n_splits=roof_flod, shuffle=True, random_state=random_state)
-        for kfold, (train_index, valid_index) in enumerate(
+        for kfold, (train_index, test_index) in enumerate(
                 kf.split(self.data['train_q1_{}_seqs'.format(self.word_chars)], self.data['labels'])):
             print('\n============== perform fold {}, total folds {} =============='.format(kfold, roof_flod))
 
@@ -76,45 +74,54 @@ class BaseModel(object):
             train_features = self.data['train_features'][train_index]
             train_y = self.data['labels'][train_index]
 
+            # 划分出 fit 的 valid 数据
+            test_size = 0.2
+            train_q1, valid_q1, y_train, y_valid = train_test_split(train_input1, train_y, random_state=2018, test_size=test_size)
+            train_q2, valid_q2, y_train, y_valid = train_test_split(train_input2, train_y, random_state=2018, test_size=test_size)
+            train_features, valid_features, y_train, y_valid = train_test_split(train_features, train_y, random_state=2018, test_size=test_size)
+
             if use_pseudo_label:
                 random.seed(random_state)
 
                 test_size = self.data['test_q1_{}_seq'.format(self.word_chars)].shape[0]
                 pseudo_index = random.sample(range(0, test_size), int(pseudo_label_ratio * test_size))
 
-                train_input1 = np.concatenate((train_input1, self.data['test_q1_{}_seq'.format(self.word_chars)][pseudo_index]), axis=0)
-                train_input2 = np.concatenate((train_input2, self.data['test_q2_{}_seq'.format(self.word_chars)][pseudo_index]), axis=0)
+                train_q1 = np.concatenate((train_q1, self.data['test_q1_{}_seq'.format(self.word_chars)][pseudo_index]), axis=0)
+                train_q2 = np.concatenate((train_q2, self.data['test_q2_{}_seq'.format(self.word_chars)][pseudo_index]), axis=0)
                 train_features = np.concatenate((train_features, self.data['test_features'][pseudo_index]), axis=0)
-                train_y = np.concatenate((train_y, self.data['test_pred_labels'][pseudo_index]), axis=0)
+                y_train = np.concatenate((y_train, self.data['test_pred_labels'][pseudo_index]), axis=0)
 
                 # shuffle
-                shuffle_index = random.sample(range(0, train_y.shape[0]), train_y.shape[0])
-                train_input1 = train_input1[shuffle_index]
-                train_input2 = train_input2[shuffle_index]
-                train_y = train_y[shuffle_index]
+                shuffle_index = random.sample(range(0, y_train.shape[0]), y_train.shape[0])
+                train_q1 = train_q1[shuffle_index]
+                train_q2 = train_q2[shuffle_index]
+                y_train = y_train[shuffle_index]
 
-            valid_input1 = self.data['train_q1_{}_seqs'.format(self.word_chars)][valid_index]
-            valid_input2 = self.data['train_q2_{}_seqs'.format(self.word_chars)][valid_index]
-            valid_features = self.data['train_features'][valid_index]
-            valid_y = self.data['labels'][valid_index]
+            # fit 未看到的test数据
+            test_q1 = self.data['train_q1_{}_seqs'.format(self.word_chars)][test_index]
+            test_q2 = self.data['train_q2_{}_seqs'.format(self.word_chars)][test_index]
+            test_features = self.data['train_features'][test_index]
+            test_y = self.data['labels'][test_index]
 
-            train_x = [train_input1, train_input2, train_features]
+            train_x = [train_q1, train_q2, train_features]
+            valid_x = [valid_q1, valid_q2, valid_features]
 
-            valid_x_1 = [valid_input1, valid_input2, valid_features]
-            valid_x_2 = [valid_input2, valid_input1, valid_features]
+            test_x_1 = [test_q1, test_q2, test_features]
+            test_x_2 = [test_q2, test_q1, test_features]
 
             ########################################
             ## training the model and predict
             ########################################
 
-            best_model_name = '{}_{}_kfold{}_batch_size{}_time{}.h5'.format(
-                self.model_name, self.cfg.params_to_string(), kfold, batch_size, self.time_str
-            )
+            # best_model_name = '{}_{}_kfold{}_batch_size{}_time{}.h5'.format(
+            #     self.model_name, self.cfg.params_to_string(), kfold, batch_size, self.time_str
+            # )
+            best_model_name = '{}_{}_best_weights_fold_{}_{}.h5'.format(self.model_name, self.word_chars, kfold, self.time_str)
             best_model_path = best_model_dir + best_model_name
 
             early_stop = EarlyStopping(monitor='val_loss',
                                        min_delta=1e-4,
-                                       patience=3,
+                                       patience=2,
                                        mode='min')
             model_ckpt = ModelCheckpoint(filepath=best_model_path,
                                          monitor='val_loss',
@@ -138,52 +145,39 @@ class BaseModel(object):
             )
 
             model.fit(x=train_x,
-                      y=train_y,
+                      y=y_train,
                       epochs=self.cfg.epochs,
                       batch_size=batch_size,
-                      validation_data=(valid_x_1, valid_y),
+                      validation_data=(valid_x, y_valid),
                       verbose=1,
                       callbacks=callbacks)
 
-            # print('--> set embedding trainable, fine tuning')
-            # # load previous best model
-            # model.load_weights(filepath=best_model_path)
-            # # clear！
-            # callback.wait = 0
-            # # set embedding layer trainable
-            # model.get_layer('embedding').trainable = True
-            # # recompile
-            # model.compile(loss='binary_crossentropy', optimizer=optimizers.SGD(lr=1e-3), metrics=['accuracy'])
-            # # retrain
-            # model.fit(x=train_x,
-            #           y=train_y,
-            #           epochs=self.cfg.epochs,
-            #           batch_size=batch_size,
-            #           validation_data=(valid_x_1, valid_y),
-            #           verbose=1,
-            #           callbacks=callbacks)
             # load final best model
             model.load_weights(filepath=best_model_path)
 
-            # predict valid
-            valid_pred_1 = model.predict(valid_x_1, batch_size=predict_batch_size)[:, 0]
-            valid_pred_2 = model.predict(valid_x_2, batch_size=predict_batch_size)[:, 0]
-            valid_pred = (valid_pred_1 + valid_pred_2) / 2.0
-
-            valid_logloss = early_stop.best
-            print('current best valid_logloss: {}'.format(valid_logloss))
-            cv_logloss.append(valid_logloss)
-
-            text_x_1 = [self.data['test_q1_{}_seq'.format(self.word_chars)], self.data['test_q2_{}_seq'.format(self.word_chars)], self.data['test_features']]
-            text_x_2 = [self.data['test_q2_{}_seq'.format(self.word_chars)], self.data['test_q1_{}_seq'.format(self.word_chars)], self.data['test_features']]
-
-            test_pred_1 = model.predict(text_x_1, batch_size=predict_batch_size)[:, 0]
-            test_pred_2 = model.predict(text_x_2, batch_size=predict_batch_size)[:, 0]
+            # 预测fit未看到的 test
+            test_pred_1 = model.predict(test_x_1, batch_size=predict_batch_size)[:, 0]
+            test_pred_2 = model.predict(test_x_2, batch_size=predict_batch_size)[:, 0]
             test_pred = (test_pred_1 + test_pred_2) / 2.0
 
+            test_logloss = log_loss(test_y, test_pred)
+            print('current best test_logloss: {}'.format(test_logloss))
+            cv_logloss.append(test_logloss)
+
+            exact_text_x_1 = [self.data['test_q1_{}_seq'.format(self.word_chars)],
+                              self.data['test_q2_{}_seq'.format(self.word_chars)],
+                              self.data['test_features']]
+            exact_text_x_2 = [self.data['test_q2_{}_seq'.format(self.word_chars)],
+                              self.data['test_q1_{}_seq'.format(self.word_chars)],
+                              self.data['test_features']]
+
+            exact_test_pred_1 = model.predict(exact_text_x_1, batch_size=predict_batch_size)[:, 0]
+            exact_test_pred_2 = model.predict(exact_text_x_2, batch_size=predict_batch_size)[:, 0]
+            exact_test_pred = (exact_test_pred_1 + exact_test_pred_2) / 2.0
+
             # run-out-of-fold predict
-            pred_train_full[valid_index] = valid_pred
-            pred_test_full += test_pred
+            pred_train_full[test_index] = test_pred
+            pred_test_full += exact_test_pred
 
         print('cv result:')
         print(cv_logloss)
@@ -192,20 +186,16 @@ class BaseModel(object):
 
         print("saving predictions for ensemble")
         test_df = pd.DataFrame({'y_pre': pred_train_full})
-        test_df.to_csv('{}train_{}_{}_cv{}_{}.csv'.format(
-                self.cfg.save_ensemble_dir, self.model_name,
-                self.cfg.params_to_string() + '_fold{}'.format(fold) + '_batch_size{}'.format(batch_size),
-                mean_valid_logloss, self.time_str
+        test_df.to_csv('{}train_{}_{}_cv{}_time{}.csv'.format(
+                self.cfg.save_stable_ensemble_dir, self.model_name, self.word_chars, mean_valid_logloss, self.time_str
             ),
             index=False
         )
 
         test_predict = pred_test_full / float(roof_flod)
         test_df = pd.DataFrame({'y_pre': test_predict})
-        test_df.to_csv('{}test_{}_{}_cv{}_{}.csv'.format(
-                self.cfg.save_ensemble_dir, self.model_name,
-                self.cfg.params_to_string() + '_fold{}'.format(fold) + '_batch_size{}'.format(batch_size),
-                mean_valid_logloss, self.time_str
+        test_df.to_csv('{}test_{}_{}_cv{}_time{}.csv'.format(
+                self.cfg.save_stable_ensemble_dir, self.model_name, self.word_chars, mean_valid_logloss, self.time_str
             ),
             index=False
         )
